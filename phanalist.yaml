@@ -19,7 +19,9 @@ rules:
     max_paths: 10
   E0012:
     include_namespaces: ["Noldors\\PhpCsFixer\\"]
-    exclude_namespaces: []
+    # Configurable/whitespace-aware fixers require mutable configuration setters.
+    # The internal adapter implements that CLI contract, not an application service.
+    exclude_namespaces: ["Noldors\\PhpCsFixer\\Internal"]
     reset_interfaces: ["ResetInterface"]
   E0016:
     max_complexity: 15

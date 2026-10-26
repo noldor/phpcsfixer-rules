@@ -4,176 +4,102 @@ declare(strict_types = 1);
 
 namespace Noldors\PhpCsFixer\Tests;
 
-use Closure;
-use SplFileInfo;
 use RuntimeException;
-use Noldors\PhpCsFixer\Config;
 use PHPUnit\Framework\TestCase;
-use PhpCsFixer\Tokenizer\Tokens;
-use PhpCsFixer\Fixer\FixerInterface;
-use Noldors\PhpCsFixer\Fixer\ArrayWrappingFixer;
-use Noldors\PhpCsFixer\Fixer\MethodCallWrappingFixer;
-use PhpCsFixer\Config\RuleCustomisationPolicyInterface;
+use Symfony\Component\Process\Process;
+use Symfony\Component\Filesystem\Filesystem;
 
 final class PerFileRuleSelectionTest extends TestCase
 {
-    public function testAFileAnnotationCanIgnoreANativeRuleDuringStabilization(): void
+    public function testTheNativeCliHonorsIgnoreAnnotationsForNativeRules(): void
     {
         $input = "<?php\n// @php-cs-fixer-ignore strict_param\nin_array(\$needle, \$haystack);\n";
 
-        $this->assertSame($input, $this->stabilize($input, ['strict_param' => true]));
+        $this->assertSame($input, $this->format($input, ['strict_param' => true]));
     }
 
-    public function testAFileAnnotationCanIgnoreACustomLayoutRuleDuringStabilization(): void
+    public function testTheNativeCliHonorsIgnoreAnnotationsForCustomRules(): void
     {
         $input = "<?php\n// @php-cs-fixer-ignore Noldors/method_call_wrapping\n\$o->run(1, 2, 3, 4);\n";
 
-        $this->assertSame(
-            $input,
-            $this->stabilize(
-                $input,
-                [
-                    'Noldors/method_call_wrapping' => true,
-                ],
-            ),
-        );
+        $this->assertSame($input, $this->format($input, ['Noldors/method_call_wrapping' => true]));
     }
 
-    public function testTheNativePolicyCanDisableARuleForAFile(): void
+    public function testTheNativePolicyCanDisableACustomRule(): void
     {
-        $input = "<?php\nin_array(\$needle, \$haystack);\n";
-        $policy = $this->policy(['strict_param' => static fn (SplFileInfo $file): bool => false]);
-
-        $this->assertSame($input, $this->stabilize($input, ['strict_param' => true], $policy));
-    }
-
-    public function testAnAnnotationTakesPrecedenceOverTheNativePolicy(): void
-    {
-        $calls = 0;
-        $policy = $this->policy(
-            [
-                'strict_param' => static function (SplFileInfo $file) use (&$calls): bool {
-                    ++$calls;
-
-                    return true;
-                },
-            ],
-        );
-        $input = "<?php\n// @php-cs-fixer-ignore strict_param\nin_array(\$needle, \$haystack);\n";
-
-        $this->assertSame($input, $this->stabilize($input, ['strict_param' => true], $policy));
-        $this->assertSame(0, $calls);
-    }
-
-    public function testATruePolicyDecisionKeepsTheRuleAndIsResolvedOnceBeforePasses(): void
-    {
-        $calls = 0;
-        $policy = $this->policy(
-            [
-                'strict_param' => static function (SplFileInfo $file) use (&$calls): bool {
-                    ++$calls;
-
-                    return true;
-                },
-            ],
-        );
-
-        $this->assertSame(
-            "<?php\nin_array(\$needle, \$haystack, true);\n",
-            $this->stabilize(
-                "<?php\nin_array(\$needle, \$haystack);\n",
-                [
-                    'strict_param' => true,
-                ],
-                $policy,
-            ),
-        );
-        $this->assertSame(1, $calls);
-    }
-
-    public function testTheNativePolicyCanReplaceACustomRuleWithADifferentConfiguration(): void
-    {
-        $replacement = new MethodCallWrappingFixer();
-        $replacement->configure(['max_line_length' => 100, 'max_single_line_arguments' => 5]);
-        $policy = $this->policy(
-            [
-                'Noldors/method_call_wrapping' => static fn (SplFileInfo $file): FixerInterface => $replacement,
-            ],
-        );
         $input = "<?php\n\$o->run(1, 2, 3, 4);\n";
 
         $this->assertSame(
             $input,
-            $this->stabilize(
-                $input,
-                [
-                    'Noldors/method_call_wrapping' => true,
-                ],
-                $policy,
-            ),
+            $this->format($input, ['Noldors/method_call_wrapping' => true], 'false'),
         );
     }
 
-    public function testAReplacementOfTheWrongClassIsRejectedLikeTheNativeRunner(): void
+    public function testTheNativePolicyCanReplaceACustomRulesConfiguration(): void
     {
-        $policy = $this->policy(
-            [
-                'Noldors/method_call_wrapping' => static fn (SplFileInfo $file): FixerInterface => new ArrayWrappingFixer(),
-            ],
+        $input = "<?php\n\$o->run(1, 2, 3, 4);\n";
+        $selection = <<<'PHP'
+            (static function (): \PhpCsFixer\Fixer\FixerInterface {
+                $fixer = new \Noldors\PhpCsFixer\Fixer\MethodCallWrappingFixer();
+                $fixer->configure(['max_single_line_arguments' => 5]);
+
+                return $fixer;
+            })()
+            PHP;
+
+        $this->assertSame(
+            $input,
+            $this->format($input, ['Noldors/method_call_wrapping' => true], $selection),
         );
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('must be of the same class as the original fixer');
-
-        $this->stabilize(
-            "<?php\n\$o->run(1, 2, 3, 4);\n",
-            [
-                'Noldors/method_call_wrapping' => true,
-            ],
-            $policy,
-        );
-    }
-
-    /**
-     * @param array<non-empty-string, Closure(SplFileInfo): (bool|FixerInterface)> $customisers
-     */
-    private function policy(array $customisers): RuleCustomisationPolicyInterface
-    {
-        return new class ($customisers) implements RuleCustomisationPolicyInterface {
-            /**
-             * @param array<non-empty-string, Closure(SplFileInfo): (bool|FixerInterface)> $customisers
-             */
-            public function __construct(
-                private readonly array $customisers,
-            ) {}
-
-            public function getPolicyVersionForCache(): string
-            {
-                return 'test-policy-v1';
-            }
-
-            public function getRuleCustomisers(): array
-            {
-                return $this->customisers;
-            }
-        };
     }
 
     /**
      * @param array<string, array<string, mixed>|bool> $rules
      */
-    private function stabilize(string $code, array $rules, RuleCustomisationPolicyInterface|null $policy = null): string
+    private function format(string $code, array $rules, string|null $policySelection = null): string
     {
-        $config = Config::create(__DIR__);
-        $config->setRules([...$rules, 'Noldors/layout_stabilization' => true]);
-        $config->setRuleCustomisationPolicy($policy);
-        $tokens = Tokens::fromCode($code);
+        $filesystem = new Filesystem();
+        $root = \sys_get_temp_dir() . '/noldors-cli-selection-' . \bin2hex(\random_bytes(8));
+        $autoload = \var_export(__DIR__ . '/../vendor/autoload.php', true);
+        $rulesCode = \var_export($rules, true);
+        $config = "<?php\nrequire {$autoload};\n\$config = \\Noldors\\PhpCsFixer\\Config::create(__DIR__);\n\$config->setRules({$rulesCode});\n";
 
-        foreach ($config->getCustomFixers() as $fixer) {
-            if ('Noldors/layout_stabilization' === $fixer->getName()) {
-                $fixer->fix(new SplFileInfo('example.php'), $tokens);
-            }
+        if (null !== $policySelection) {
+            $config .= <<<'PHP'
+                $config->setRuleCustomisationPolicy(new class implements \PhpCsFixer\Config\RuleCustomisationPolicyInterface {
+                    public function getPolicyVersionForCache(): string { return 'test-v1'; }
+                    public function getRuleCustomisers(): array {
+                        return ['Noldors/method_call_wrapping' => static fn (\SplFileInfo $file) =>
+                PHP;
+            $config .= $policySelection . "];\n}\n});\n";
         }
 
-        return $tokens->generateCode();
+        $config .= "return \$config;\n";
+
+        try {
+            $filesystem->dumpFile($root . '/example.php', $code);
+            $filesystem->dumpFile($root . '/config.php', $config);
+            $command = [
+                \PHP_BINARY,
+                __DIR__ . '/../vendor/bin/php-cs-fixer',
+                'fix',
+                '--config=' . $root . '/config.php',
+                '--using-cache=no',
+                '--sequential',
+            ];
+
+            $command[] = $root . '/example.php';
+            $process = new Process($command);
+            $this->assertSame(
+                0,
+                $process->run(),
+                $process->getOutput() . $process->getErrorOutput(),
+            );
+            $result = \file_get_contents($root . '/example.php');
+
+            return false === $result ? throw new RuntimeException('Cannot read formatted fixture.') : $result;
+        } finally {
+            $filesystem->remove($root);
+        }
     }
 }

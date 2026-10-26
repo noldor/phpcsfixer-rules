@@ -20,7 +20,12 @@ final class LayoutTest extends TestCase
     public function testWrapsBoundariesWithoutMovingAnInlineComment(): void
     {
         $tokens = Tokens::fromCode("<?php\n\$x = [1, // note\n2];\n");
-        $open = $tokens->getNextTokenOfKind(0, [[\PhpCsFixer\Tokenizer\CT::T_ARRAY_BRACKET_OPEN]]);
+        $open = $tokens->getNextTokenOfKind(
+            0,
+            [
+                [\PhpCsFixer\Tokenizer\CT::T_ARRAY_BRACKET_OPEN],
+            ],
+        );
         $this->assertNotNull($open);
         $close = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_ARRAY_BRACKET, $open);
         $comma = $tokens->getNextTokenOfKind($open, [',']);

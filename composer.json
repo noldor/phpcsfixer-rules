@@ -7,7 +7,7 @@
     "require": {
         "php": ">=8.5",
         "ext-mbstring": "*",
-        "friendsofphp/php-cs-fixer": "~3.95.25"
+        "friendsofphp/php-cs-fixer": "^3.95.25"
     },
     "require-dev": {
         "denzyl/phanalist": "^1.1",

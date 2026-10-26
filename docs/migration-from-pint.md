@@ -14,14 +14,13 @@ entries not explicitly repeated by that configuration:
 - `general_phpdoc_tag_rename`
 - `no_multiple_statements_per_line`
 
-Three custom multiline fixers and one internal stabilization rule are appended,
-for 274 entries in total. All 270 native entries remain unchanged, including
+Three custom multiline fixers are appended, for 273 entries in total. All 270 native entries remain unchanged, including
 27 disabled rules. Nested options and their ordering remain intact.
 
 The source checkout retains the [explicit configuration snapshot](../tests/Fixtures/pint.json)
 and [Laravel preset snapshot](../tests/Fixtures/laravel-preset.json). Parity tests
 compare native keys and full values independently against both `src/rules.php`
-and `Config::rules()`. They also verify the four additions and that the complete
+and `Config::rules()`. They also verify the three additions and that the complete
 configuration can be loaded by PHP-CS-Fixer.
 The snapshots are development fixtures and are excluded from dist archives.
 
@@ -50,16 +49,15 @@ The factory returns `Noldors\PhpCsFixer\Config`, which extends the native
 risky rules enabled. The full native preset includes transformations beyond
 whitespace, as did the source Pint profile.
 
-Internal stabilization repeats the configured fixers until the output stops
-changing. This resolves interactions where indentation or spacing makes a line
-longer after wrapping has run. It adds verification passes inside the same
-invocation. A cycle or failure to settle within 16 passes raises a diagnostic.
-Registered custom fixers use their normal instances and native file/token
-eligibility checks; implementing clone support is not required.
-Per-file ignore annotations and the native rule customization policy are
-respected during stabilization. Policy decisions are resolved once before its
-internal passes. File policy callbacks should be deterministic because the
-runner and stabilization can each evaluate them for the same file.
+The custom rules run once in the native fixer pipeline. Native indentation or
+spacing may make a line exceed the width limit after its wrapping rule has run;
+wrapping a surrounding chain may also change a nested call's indentation. These
+cases can require another `php-cs-fixer fix` invocation. Repeat formatting until
+`php-cs-fixer fix --dry-run --diff` reports no changes before committing.
+
+The package does not replay native or third-party rules. File annotations,
+rule customization policies and custom fixer eligibility belong to the native
+runner and are evaluated by PHP-CS-Fixer normally.
 
 Its default finder covers PHP files under the supplied root and excludes
 `vendor`, `node_modules`, `build`, `storage`, `bootstrap/cache`, Blade templates
@@ -98,9 +96,8 @@ $config->setRules([
 
 Review overlapping rule keys. PHP array unpacking replaces a whole option array
 for the same rule name; it does not merge individual options. Preserve required
-options when adding overrides. Apply overrides through this configuration's
-`setRules()` method. CLI `--rules` overrides happen outside the configuration
-and cannot supply their effective rule settings to stabilization.
+options when adding overrides. Apply overrides through the native `setRules()`
+method.
 
 Use the `Config` factory for registration and `Config::rules()` for preset
 overrides. `src/rules.php` stores the catalog data.
@@ -116,10 +113,10 @@ rule's documentation for its supported syntax and boundaries.
 
 ## Supported PHP-CS-Fixer versions
 
-The package supports PHP-CS-Fixer >=3.95.25 and <3.96 (`~3.95.25`). Stabilization
-uses a native fixer factory marked `@internal`, whose API is not covered by
-PHP-CS-Fixer's compatibility promise. Test compatibility with a new minor
-series before widening that dependency constraint.
+The dependency constraint is `^3.95.25`: PHP-CS-Fixer >=3.95.25 and <4.0. The
+configuration uses the supported custom-fixer registration API, without the
+internal native fixer factory, rule-set resolver, annotation analyzer, base
+fixer or configuration trait.
 
 ## Update scripts and CI
 
@@ -141,7 +138,7 @@ runtime, CI setup and cache policy in the consuming project. Confirm that its
 runtime satisfies the selected package's requirements.
 
 Review the proposed formatting diff, apply the intended changes, and rerun
-`test:lint` to confirm that a second pass proposes no changes. Complete the
+`test:lint` until it proposes no changes. Complete the
 project's normal verification before removing its Pint dependency and obsolete
 configuration.
 

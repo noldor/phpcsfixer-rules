@@ -5,31 +5,21 @@ declare(strict_types = 1);
 namespace Noldors\PhpCsFixer\Fixer;
 
 use SplFileInfo;
-use LogicException;
 use PhpCsFixer\Tokenizer\CT;
-use PhpCsFixer\AbstractFixer;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 use Noldors\PhpCsFixer\Internal\Layout;
 use PhpCsFixer\FixerDefinition\CodeSample;
 use Noldors\PhpCsFixer\Internal\CallSyntax;
-use PhpCsFixer\Fixer\ConfigurableFixerTrait;
 use PhpCsFixer\FixerDefinition\FixerDefinition;
-use PhpCsFixer\Fixer\ConfigurableFixerInterface;
-use PhpCsFixer\Fixer\WhitespacesAwareFixerInterface;
 use PhpCsFixer\FixerConfiguration\FixerOptionBuilder;
+use Noldors\PhpCsFixer\Internal\AbstractWrappingFixer;
 use PhpCsFixer\FixerDefinition\FixerDefinitionInterface;
 use PhpCsFixer\FixerConfiguration\FixerConfigurationResolver;
 use PhpCsFixer\FixerConfiguration\FixerConfigurationResolverInterface;
 
-/**
- * @implements ConfigurableFixerInterface<array{max_line_length?: int}, array{max_line_length: int}>
- */
-final class FluentChainWrappingFixer extends AbstractFixer implements ConfigurableFixerInterface, WhitespacesAwareFixerInterface
+final class FluentChainWrappingFixer extends AbstractWrappingFixer
 {
-    /** @use ConfigurableFixerTrait<array{max_line_length?: int}, array{max_line_length: int}> */
-    use ConfigurableFixerTrait;
-
     public function getName(): string
     {
         return 'Noldors/fluent_chain_wrapping';
@@ -214,10 +204,6 @@ final class FluentChainWrappingFixer extends AbstractFixer implements Configurab
 
         if (\str_contains($code, "\n") || \str_contains($code, "\r")) {
             return true;
-        }
-
-        if (null === $this->configuration) {
-            throw new LogicException('The fixer must be configured before applying it.');
         }
 
         return Layout::lineWidth(

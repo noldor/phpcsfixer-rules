@@ -5,30 +5,20 @@ declare(strict_types = 1);
 namespace Noldors\PhpCsFixer\Fixer;
 
 use SplFileInfo;
-use LogicException;
 use PhpCsFixer\Tokenizer\CT;
-use PhpCsFixer\AbstractFixer;
 use PhpCsFixer\Tokenizer\Tokens;
 use Noldors\PhpCsFixer\Internal\Layout;
 use PhpCsFixer\FixerDefinition\CodeSample;
-use PhpCsFixer\Fixer\ConfigurableFixerTrait;
 use Noldors\PhpCsFixer\Internal\DelimitedList;
 use PhpCsFixer\FixerDefinition\FixerDefinition;
-use PhpCsFixer\Fixer\ConfigurableFixerInterface;
-use PhpCsFixer\Fixer\WhitespacesAwareFixerInterface;
 use PhpCsFixer\FixerConfiguration\FixerOptionBuilder;
+use Noldors\PhpCsFixer\Internal\AbstractWrappingFixer;
 use PhpCsFixer\FixerDefinition\FixerDefinitionInterface;
 use PhpCsFixer\FixerConfiguration\FixerConfigurationResolver;
 use PhpCsFixer\FixerConfiguration\FixerConfigurationResolverInterface;
 
-/**
- * @implements ConfigurableFixerInterface<array<string, mixed>, array{max_line_length: positive-int}>
- */
-final class ArrayWrappingFixer extends AbstractFixer implements ConfigurableFixerInterface, WhitespacesAwareFixerInterface
+final class ArrayWrappingFixer extends AbstractWrappingFixer
 {
-    /** @use ConfigurableFixerTrait<array<string, mixed>, array{max_line_length: positive-int}> */
-    use ConfigurableFixerTrait;
-
     public function getName(): string
     {
         return 'Noldors/array_wrapping';
@@ -54,7 +44,7 @@ final class ArrayWrappingFixer extends AbstractFixer implements ConfigurableFixe
 
     protected function applyFix(SplFileInfo $file, Tokens $tokens): void
     {
-        $configuration = $this->configuration ?? throw new LogicException('The fixer must be configured before fixing.');
+        $configuration = $this->configuration;
 
         for ($index = 0; \count($tokens) > $index; ++$index) {
             if (! $tokens[$index]->isGivenKind([\T_ARRAY, CT::T_ARRAY_BRACKET_OPEN])) {

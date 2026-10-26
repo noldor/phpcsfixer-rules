@@ -5,21 +5,14 @@ declare(strict_types = 1);
 namespace Noldors\PhpCsFixer\Tests;
 
 use SplFileInfo;
-use LogicException;
 use PhpCsFixer\FixerFactory;
-use PhpCsFixer\AbstractFixer;
 use Noldors\PhpCsFixer\Config;
 use PhpCsFixer\RuleSet\RuleSet;
-use PhpCsFixer\Tokenizer\Token;
 use PHPUnit\Framework\TestCase;
 use PhpCsFixer\Tokenizer\Tokens;
 use PhpCsFixer\Config as NativeConfig;
 use PhpCsFixer\WhitespacesFixerConfig;
-use PhpCsFixer\FixerDefinition\CodeSample;
 use PHPUnit\Framework\Attributes\DataProvider;
-use PhpCsFixer\FixerDefinition\FixerDefinition;
-use PhpCsFixer\FixerDefinition\FixerDefinitionInterface;
-use Noldors\PhpCsFixer\Internal\LayoutStabilizationFixer;
 
 final class IndentationInteractionTest extends TestCase
 {
@@ -31,7 +24,7 @@ final class IndentationInteractionTest extends TestCase
         $input = $insideBlock
             ? "<?php\nif (\$condition) {\n{$line}\n}\n"
             : "<?php\n{$line}\n";
-        $once = $this->format($input);
+        $once = $this->formatUntilStable($input);
 
         $this->assertSame($once, $this->format($once));
     }
@@ -58,7 +51,7 @@ final class IndentationInteractionTest extends TestCase
         $argument = $prefix . \str_repeat('x', 100 - \mb_strlen($prefix . $suffix)) . $suffix;
         $this->assertSame(100, \mb_strlen($argument));
         $input = "<?php\n\$o->first()->with(\n{$argument}\n    2,\n    3,\n    4\n);\n";
-        $once = $this->format($input);
+        $once = $this->formatUntilStable($input);
 
         $this->assertSame($once, $this->format($once));
     }
@@ -73,7 +66,7 @@ final class IndentationInteractionTest extends TestCase
         yield 'array argument' => ["    ['", "'],"];
     }
 
-    public function testStabilizationHonorsDisabledNativeRulesFromTheFinalConfiguration(): void
+    public function testConfigurationHonorsDisabledNativeRulesFromTheFinalConfiguration(): void
     {
         $config = Config::create(__DIR__);
         $config->setRules([...Config::rules(), 'strict_param' => false]);
@@ -85,7 +78,7 @@ final class IndentationInteractionTest extends TestCase
         $this->assertSame($actual, $this->format($actual, $config));
     }
 
-    public function testStabilizationHonorsNativeRuleOptions(): void
+    public function testConfigurationHonorsNativeRuleOptions(): void
     {
         $config = Config::create(__DIR__);
         $config->setRules([...Config::rules(), 'concat_space' => ['spacing' => 'none']]);
@@ -99,7 +92,7 @@ final class IndentationInteractionTest extends TestCase
         $this->assertSame($actual, $this->format($actual, $config));
     }
 
-    public function testStabilizationUsesTheConsumersIndentationAndLineEndings(): void
+    public function testConfigurationUsesTheConsumersIndentationAndLineEndings(): void
     {
         $config = Config::create(__DIR__);
         $config->setIndent("\t");
@@ -112,7 +105,7 @@ final class IndentationInteractionTest extends TestCase
         $this->assertSame($actual, $this->format($actual, $config));
     }
 
-    public function testStabilizationHonorsDisabledLayoutRules(): void
+    public function testConfigurationHonorsDisabledLayoutRules(): void
     {
         $config = Config::create(__DIR__);
         $config->setRules([...Config::rules(), 'Noldors/method_call_wrapping' => false]);
@@ -122,7 +115,7 @@ final class IndentationInteractionTest extends TestCase
         $this->assertSame($actual, $this->format($actual, $config));
     }
 
-    public function testStabilizationHonorsTheFinalLayoutRuleOptions(): void
+    public function testConfigurationHonorsTheFinalLayoutRuleOptions(): void
     {
         $config = Config::create(__DIR__);
         $config->setRules(
@@ -141,74 +134,29 @@ final class IndentationInteractionTest extends TestCase
         $this->assertSame($actual, $this->format($actual, $config));
     }
 
-    public function testThePassBoundDoesNotLimitSyntaxNestingDepth(): void
+    public function testRepeatedFormattingSupportsDeepSyntaxNesting(): void
     {
         $argument = \str_repeat('$o->inner(', 24) . "'value'" . \str_repeat(')', 24);
         $input = "<?php\n\$o->first()->with(\n    {$argument},\n    2,\n    3,\n    4\n);\n";
-        $once = $this->format($input);
+        $once = $this->formatUntilStable($input);
 
         $this->assertSame(24, \mb_substr_count($once, '->inner('));
         $this->assertSame($once, $this->format($once));
     }
 
-    public function testStabilizationRejectsARepeatedOutputCycle(): void
+    private function formatUntilStable(string $code): string
     {
-        $fixer = $this->coordinatorWithChangingWhitespace(true);
-        $this->expectException(LogicException::class);
-        $this->expectExceptionMessage('cycle');
+        for ($pass = 0; 32 > $pass; ++$pass) {
+            $next = $this->format($code);
 
-        $fixer->fix(new SplFileInfo('example.php'), Tokens::fromCode("<?php\n\$a = 1;\n"));
-    }
-
-    public function testStabilizationRejectsNonConvergingRulesWithinABoundedPassCount(): void
-    {
-        $fixer = $this->coordinatorWithChangingWhitespace(false);
-        $this->expectException(LogicException::class);
-        $this->expectExceptionMessage('16 passes');
-
-        $fixer->fix(new SplFileInfo('example.php'), Tokens::fromCode("<?php\n\$a = 1;\n"));
-    }
-
-    private function coordinatorWithChangingWhitespace(bool $cycle): LayoutStabilizationFixer
-    {
-        $changing = new class ($cycle) extends AbstractFixer {
-            public function __construct(
-                private readonly bool $cycle,
-            ) {
-                parent::__construct();
+            if ($next === $code) {
+                return $next;
             }
 
-            public function getName(): string
-            {
-                return 'Testing/changing_whitespace';
-            }
+            $code = $next;
+        }
 
-            public function getDefinition(): FixerDefinitionInterface
-            {
-                return new FixerDefinition('Test-only changing whitespace.', [
-                    new CodeSample("<?php\n\$a = 1;\n"),
-                ]);
-            }
-
-            public function isCandidate(Tokens $tokens): bool
-            {
-                return true;
-            }
-
-            protected function applyFix(SplFileInfo $file, Tokens $tokens): void
-            {
-                $index = \count($tokens) - 1;
-                $previous = $tokens[$index]->getContent();
-                $next = $this->cycle ? ("\n" === $previous ? "\n\n" : "\n") : $previous . "\n";
-                $tokens[$index] = new Token([\T_WHITESPACE, $next]);
-            }
-        };
-
-        return new LayoutStabilizationFixer(
-            ['Testing/changing_whitespace' => true, 'Noldors/layout_stabilization' => true],
-            [$changing],
-            new WhitespacesFixerConfig('    ', "\n"),
-        );
+        $this->fail('Repeated CLI-equivalent formatting did not settle.');
     }
 
     private function format(string $code, NativeConfig|null $config = null): string
