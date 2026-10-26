@@ -1,0 +1,39 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "noldors/phpcsfixer-rules",
+    "description": "Shared PHP-CS-Fixer preset and multiline layout rules.",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.5",
+        "ext-mbstring": "*",
+        "friendsofphp/php-cs-fixer": "~3.95.25"
+    },
+    "require-dev": {
+        "denzyl/phanalist": "^1.1",
+        "phpstan/phpstan": "^2.3",
+        "phpunit/phpunit": "^13.0"
+    },
+    "autoload": {
+        "psr-4": {"Noldors\\PhpCsFixer\\": "src/"}
+    },
+    "autoload-dev": {
+        "psr-4": {"Noldors\\PhpCsFixer\\Tests\\": "tests/"}
+    },
+    "scripts": {
+        "format": "php-cs-fixer fix",
+        "test:lint": "php-cs-fixer fix --dry-run --diff",
+        "test:types": "phpstan analyse --memory-limit=512M",
+        "test:phanalist": "phanalist --src src",
+        "test": "phpunit",
+        "check": ["@test:lint", "@test:types", "@test:phanalist", "@test"]
+    },
+    "support": {
+        "issues": "https://github.com/noldor/phpcsfixer-rules/issues",
+        "source": "https://github.com/noldor/phpcsfixer-rules"
+    },
+    "config": {"sort-packages": true},
+    "archive": {
+        "exclude": ["/*", "/.*", "!/composer.json", "!/license.txt", "!/src", "!/src/**"]
+    }
+}
