@@ -756,5 +756,4 @@ return [
     'Noldors/array_wrapping' => [
         'max_line_length' => 100,
     ],
-    'Noldors/layout_stabilization' => true,
 ];

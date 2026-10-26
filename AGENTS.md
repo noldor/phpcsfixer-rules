@@ -6,8 +6,8 @@ the installed interfaces used by that fixer. Implement consumer rules through
 the supported custom-fixer registration API.
 
 Keep fixers framework-independent. Register public fixers through `Config::create()`
-and `Config::getCustomFixers()` in `src/Config.php`, with recommended rules in
-`src/rules.php`. Keep token helpers and pipeline coordination under `src/Internal/`.
+in `src/Config.php`, with recommended rules in
+`src/rules.php`. Keep token helpers under `src/Internal/`.
 Preserve significant tokens and literal contents; regression tests must verify output, token
 preservation and idempotence. Respect configured indentation and line endings.
 

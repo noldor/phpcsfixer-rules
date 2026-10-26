@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Noldors\PhpCsFixer\Tests;
 
+use ReflectionClass;
 use RuntimeException;
 use PhpCsFixer\Finder;
 use PhpCsFixer\FixerFactory;
@@ -34,12 +35,12 @@ final class PresetTest extends TestCase
         $this->assertSame($expected, $actual);
     }
 
-    public function testTheThreeLayoutRulesAndStabilizationAreTheOnlyAdditions(): void
+    public function testTheThreeLayoutRulesAreTheOnlyAdditions(): void
     {
         $rules = $this->entrypointRules();
         $custom = \array_filter($rules, static fn (string $name): bool => \str_starts_with($name, 'Noldors/'), \ARRAY_FILTER_USE_KEY);
 
-        $this->assertCount(274, $rules);
+        $this->assertCount(273, $rules);
         $this->assertSame(
             [
                 'Noldors/fluent_chain_wrapping' => ['max_line_length' => 100],
@@ -48,7 +49,6 @@ final class PresetTest extends TestCase
                     'max_single_line_arguments' => 3,
                 ],
                 'Noldors/array_wrapping' => ['max_line_length' => 100],
-                'Noldors/layout_stabilization' => true,
             ],
             $custom,
         );
@@ -67,7 +67,6 @@ final class PresetTest extends TestCase
                 'Noldors/fluent_chain_wrapping',
                 'Noldors/method_call_wrapping',
                 'Noldors/array_wrapping',
-                'Noldors/layout_stabilization',
             ],
             \array_map(static fn ($fixer): string => $fixer->getName(), $config->getCustomFixers()),
         );
@@ -126,6 +125,28 @@ final class PresetTest extends TestCase
         } finally {
             $filesystem->remove($root);
         }
+    }
+
+    public function testRegisteredFixersDoNotInheritInternalUpstreamImplementations(): void
+    {
+        $internalTypes = [];
+
+        foreach (Config::create(__DIR__)->getCustomFixers() as $fixer) {
+            $reflection = new ReflectionClass($fixer);
+
+            do {
+                foreach ([$reflection, ...$reflection->getTraits()] as $type) {
+                    if (\str_starts_with($type->getName(), 'PhpCsFixer\\')
+                        && \str_contains($type->getDocComment() ?: '', '@internal')) {
+                        $internalTypes[] = $type->getName();
+                    }
+                }
+
+                $reflection = $reflection->getParentClass();
+            } while (false !== $reflection);
+        }
+
+        $this->assertSame([], $internalTypes);
     }
 
     public function testProjectsCanOverrideRulesAndFinderOnTheNativeConfig(): void

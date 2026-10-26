@@ -4,11 +4,11 @@ declare(strict_types = 1);
 
 namespace Noldors\PhpCsFixer\Tests\Fixer;
 
+use InvalidArgumentException;
 use PhpCsFixer\WhitespacesFixerConfig;
 use Noldors\PhpCsFixer\Tests\FixerTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Noldors\PhpCsFixer\Fixer\MethodCallWrappingFixer;
-use PhpCsFixer\ConfigurationException\InvalidFixerConfigurationException;
 
 final class MethodCallWrappingFixerTest extends FixerTestCase
 {
@@ -212,7 +212,7 @@ final class MethodCallWrappingFixerTest extends FixerTestCase
     public function testRejectsInvalidOptions(string $option, mixed $value): void
     {
         $fixer = new MethodCallWrappingFixer();
-        $this->expectException(InvalidFixerConfigurationException::class);
+        $this->expectException(InvalidArgumentException::class);
 
         $fixer->configure([$option => $value]);
     }

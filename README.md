@@ -1,12 +1,11 @@
 # Noldors PHP-CS-Fixer rules
 
 One reusable PHP-CS-Fixer configuration containing the complete captured Pint
-profile: 270 native rule entries, three multiline layout rules and one internal
-stabilization rule, for 274 entries in total. Custom wrapping uses a maximum
+profile: 270 native rule entries and three multiline layout rules, for 273
+entries in total. Custom wrapping uses a maximum
 inline width of 100 columns and at most three inline method arguments.
 
-Requires PHP >=8.5, `ext-mbstring` and PHP-CS-Fixer >=3.95.25, <3.96
-(`~3.95.25`).
+Requires PHP >=8.5, `ext-mbstring` and PHP-CS-Fixer `^3.95.25` (>=3.95.25, <4.0).
 
 ## Installation
 
@@ -24,17 +23,17 @@ Create or update the project's `.php-cs-fixer.dist.php`:
 return Noldors\PhpCsFixer\Config::create(__DIR__);
 ```
 
-The factory registers the layout fixers and internal stabilization, enables the
-complete preset and allows its risky native rules, matching Pint's
-configuration. Stabilization settles interactions between native formatting and wrapping
-inside the same invocation. Its finder scans PHP files under the supplied project root
+The factory registers the three layout fixers through the supported custom-fixer
+API, enables the complete preset and allows its risky native rules, matching
+Pint's configuration. Native indentation or spacing changes can require another
+formatting run before the dry-run check passes. Its finder scans PHP files under
+the supplied project root
 and excludes `vendor`, `node_modules`, `build`, `storage` and `bootstrap/cache`
 directories, Blade templates and standard generated PHP IDE helper files.
 
 The returned `Config` extends the native PHP-CS-Fixer configuration, supporting
 its finder and option methods. Use `Config::rules()` as the base for deliberate
-rule overrides through `setRules()`. Keep overrides in the configuration file
-rather than CLI `--rules`, so stabilization receives the same native settings.
+rule overrides through `setRules()`.
 See the migration guide for examples, preset provenance and version support.
 
 ```sh

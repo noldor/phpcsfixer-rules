@@ -5,13 +5,10 @@ declare(strict_types = 1);
 namespace Noldors\PhpCsFixer;
 
 use PhpCsFixer\Finder;
-use PhpCsFixer\Fixer\FixerInterface;
 use PhpCsFixer\Config as NativeConfig;
-use PhpCsFixer\WhitespacesFixerConfig;
 use Noldors\PhpCsFixer\Fixer\ArrayWrappingFixer;
 use Noldors\PhpCsFixer\Fixer\MethodCallWrappingFixer;
 use Noldors\PhpCsFixer\Fixer\FluentChainWrappingFixer;
-use Noldors\PhpCsFixer\Internal\LayoutStabilizationFixer;
 
 final class Config extends NativeConfig
 {
@@ -62,23 +59,5 @@ final class Config extends NativeConfig
         $rules = require __DIR__ . '/rules.php';
 
         return $rules;
-    }
-
-    /**
-     * @return list<FixerInterface>
-     */
-    public function getCustomFixers(): array
-    {
-        $fixers = parent::getCustomFixers();
-
-        return [
-            ...$fixers,
-            new LayoutStabilizationFixer(
-                $this->getRules(),
-                $fixers,
-                new WhitespacesFixerConfig($this->getIndent(), $this->getLineEnding()),
-                $this->getRuleCustomisationPolicy(),
-            ),
-        ];
     }
 }

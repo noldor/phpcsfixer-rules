@@ -5,31 +5,21 @@ declare(strict_types = 1);
 namespace Noldors\PhpCsFixer\Fixer;
 
 use SplFileInfo;
-use LogicException;
 use PhpCsFixer\Tokenizer\CT;
-use PhpCsFixer\AbstractFixer;
 use PhpCsFixer\Tokenizer\Tokens;
 use Noldors\PhpCsFixer\Internal\Layout;
 use PhpCsFixer\FixerDefinition\CodeSample;
 use Noldors\PhpCsFixer\Internal\CallSyntax;
-use PhpCsFixer\Fixer\ConfigurableFixerTrait;
 use Noldors\PhpCsFixer\Internal\DelimitedList;
 use PhpCsFixer\FixerDefinition\FixerDefinition;
-use PhpCsFixer\Fixer\ConfigurableFixerInterface;
-use PhpCsFixer\Fixer\WhitespacesAwareFixerInterface;
 use PhpCsFixer\FixerConfiguration\FixerOptionBuilder;
+use Noldors\PhpCsFixer\Internal\AbstractWrappingFixer;
 use PhpCsFixer\FixerDefinition\FixerDefinitionInterface;
 use PhpCsFixer\FixerConfiguration\FixerConfigurationResolver;
 use PhpCsFixer\FixerConfiguration\FixerConfigurationResolverInterface;
 
-/**
- * @implements ConfigurableFixerInterface<array<string, mixed>, array{max_line_length: positive-int, max_single_line_arguments: positive-int}>
- */
-final class MethodCallWrappingFixer extends AbstractFixer implements ConfigurableFixerInterface, WhitespacesAwareFixerInterface
+final class MethodCallWrappingFixer extends AbstractWrappingFixer
 {
-    /** @use ConfigurableFixerTrait<array<string, mixed>, array{max_line_length: positive-int, max_single_line_arguments: positive-int}> */
-    use ConfigurableFixerTrait;
-
     public function getName(): string
     {
         return 'Noldors/method_call_wrapping';
@@ -77,7 +67,7 @@ final class MethodCallWrappingFixer extends AbstractFixer implements Configurabl
 
     protected function applyFix(SplFileInfo $file, Tokens $tokens): void
     {
-        $configuration = $this->configuration ?? throw new LogicException('The fixer must be configured before use.');
+        $configuration = $this->configuration;
 
         for ($open = \count($tokens) - 1; 0 < $open; --$open) {
             if (! $tokens[$open]->equals('(') || ! $this->isMethodCall($tokens, $open)) {

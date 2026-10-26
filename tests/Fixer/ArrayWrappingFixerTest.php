@@ -4,11 +4,11 @@ declare(strict_types = 1);
 
 namespace Noldors\PhpCsFixer\Tests\Fixer;
 
+use InvalidArgumentException;
 use PhpCsFixer\WhitespacesFixerConfig;
 use Noldors\PhpCsFixer\Tests\FixerTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Noldors\PhpCsFixer\Fixer\ArrayWrappingFixer;
-use PhpCsFixer\ConfigurationException\InvalidFixerConfigurationException;
 
 final class ArrayWrappingFixerTest extends FixerTestCase
 {
@@ -157,7 +157,7 @@ final class ArrayWrappingFixerTest extends FixerTestCase
     #[DataProvider('provideInvalidWidths')]
     public function testRejectsInvalidWidth(mixed $width): void
     {
-        $this->expectException(InvalidFixerConfigurationException::class);
+        $this->expectException(InvalidArgumentException::class);
 
         new ArrayWrappingFixer()->configure(['max_line_length' => $width]);
     }
