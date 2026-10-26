@@ -11,9 +11,10 @@
    these checks and resolved review discussions. Other tasks require the user's
    explicit merge authorization.
 4. After merge, Actions rechecks the resulting `master` commit. Only a successful
-   quality job can start the release job, which creates an immutable tag and
-   requests a Packagist refresh. Publication succeeds only when Packagist exposes
-   the expected version at the exact checked commit.
+   quality job can start the release job, which creates an immutable tag. GitHub
+   sends the signed push webhook to Packagist, and the release job verifies the
+   indexed version. Publication succeeds only when Packagist exposes the expected
+   version at the exact checked commit.
 
 ## Versions
 
@@ -45,11 +46,10 @@ implementation directly on `master`. Never bypass existing protection rules to
 seed a repository that already has history.
 
 Packagist can register the default branch after the first merge puts
-`composer.json` on `master`. Leave the Packagist credentials unset during
-bootstrap: the release preflight stops before tagging. After the first merge,
-register the package and configure its credentials, then dispatch the workflow
-on `master` to create `v0.0.1`. Later merges use the normal automatic release
-path.
+`composer.json` on `master`. During bootstrap, missing package registration
+stops the release preflight before tagging. After the first merge, register the
+package and configure its GitHub webhook, then dispatch the workflow on `master`
+to create `v0.0.1`. Later merges use the normal automatic release path.
 
 Configure the merge settings before merging the initial PR, and complete
 Packagist activation after its manifest reaches `master`:
@@ -62,11 +62,17 @@ Packagist activation after its manifest reaches `master`:
   pushes and deletion and has no bypass actors.
 - Register `https://github.com/noldor/phpcsfixer-rules` on Packagist as
   `noldors/phpcsfixer-rules` after the repository contains its manifest.
-- Repository Actions variable `PACKAGIST_USERNAME`: the publishing account's
-  Packagist login; it need not equal the package vendor `noldors`.
-- Repository Actions secret `PACKAGIST_TOKEN`: that account's **safe API token**.
-  Existing-package refreshes require only the safe token. Register the package
-  through Packagist's UI; do not place the account's main token in this workflow.
+- Configure an active GitHub repository webhook with payload URL
+  `https://packagist.org/api/github?username=PACKAGIST_LOGIN`, replacing
+  `PACKAGIST_LOGIN` with the existing maintaining account's Packagist login.
+  Set the content type to `application/json`, use that account's existing
+  **safe API token** as the webhook secret, enable SSL verification and subscribe
+  only to `push` events. Keep the token in the webhook configuration; the Actions
+  workflow and verifier require no Packagist credentials.
+- Before migrating an existing release workflow, verify a successful `ping` or
+  recent push delivery in the webhook's GitHub Recent Deliveries list. After the
+  migrated workflow succeeds, remove its obsolete Packagist Actions variable and
+  secret.
 - Actions must be enabled. The release job requests `contents: write` for the
   repository's built-in `GITHUB_TOKEN`; a separate GitHub PAT is unnecessary.
 
@@ -77,9 +83,10 @@ the authenticated GitHub CLI after checking existing rulesets to avoid duplicate
 gh api repos/noldor/phpcsfixer-rules/rulesets --input .github/rulesets/master.json
 ```
 
-The workflow updates Packagist in the same run that creates the tag. It does not
-depend on a second workflow being triggered by a `GITHUB_TOKEN`-created tag.
-Packagist indexes Git tags; this workflow does not upload a ZIP to Packagist.
+The release job uses `GITHUB_TOKEN` to create the tag. GitHub's signed push
+webhook refreshes Packagist, and the same job waits for its metadata; no second
+Actions workflow is needed. Packagist indexes Git tags; this workflow does not
+upload a ZIP to Packagist or send a generic API refresh request.
 
 ## Verification and recovery
 
@@ -95,16 +102,24 @@ python3 .github/scripts/verify_archive.py build/distribution/composer-package.zi
 The Git archive uses committed files. Before committing new package files,
 validate the same content with a disposable Git tree outside this checkout.
 
-Missing Packagist credentials or registration fail before a tag is created. If
-the update fails after tagging, rerun the release job or dispatch the workflow
-on `master`. A tag already pointing at that commit is reused; it is not bumped
-again, overwritten or deleted. Retry the latest `master` run if the branch has
-advanced. The workflow serializes releases, and obsolete checked-out commits
+Missing Packagist registration fails before a tag is created. A missing or
+failing webhook is detected after tagging when publication verification times
+out. The verifier makes up to 120 metadata requests, waiting five seconds between
+attempts, within the release job's 15-minute limit. It retries temporary 404 and
+connection errors; it never falls back to a generic API refresh.
+
+Rerunning the release job or dispatching the workflow on `master` reuses a tag
+already pointing at that commit; it is not bumped again, overwritten or deleted.
+Reusing a tag does not emit another push webhook. Fix the webhook and redeliver
+the original GitHub delivery, then rerun verification without moving the tag. If
+the hook is verified, a maintainer may also use Packagist's UI Update action to
+refresh the metadata before retrying. Retry the latest `master` run if the branch
+has advanced. The workflow serializes releases, and obsolete checked-out commits
 cannot tag a newer `master` commit.
 
 Treat a Packagist version pointing at another commit as an error to investigate;
-keep existing tags intact. Fix the publishing credentials or registry problem
-and retry rather than changing an already published version.
+keep existing tags intact. Fix the webhook or registry problem and retry rather
+than changing an already published version.
 
 See [GitHub tag action](https://github.com/mathieudutour/github-tag-action) and
-[Packagist API documentation](https://packagist.org/apidoc#update-a-package).
+[Packagist GitHub hook documentation](https://packagist.org/about#how-to-update-packages).
