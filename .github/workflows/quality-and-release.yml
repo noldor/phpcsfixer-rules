@@ -62,9 +62,6 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
-    env:
-      PACKAGIST_USERNAME: ${{ vars.PACKAGIST_USERNAME }}
-      PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -72,8 +69,6 @@ jobs:
           persist-credentials: false
       - name: Check release prerequisites
         run: |
-          : "${PACKAGIST_USERNAME:?Set the PACKAGIST_USERNAME repository variable}"
-          : "${PACKAGIST_TOKEN:?Set the PACKAGIST_TOKEN repository secret}"
           test "$(git rev-parse origin/master)" = "$GITHUB_SHA"
           curl --fail --silent --show-error --max-time 30 https://packagist.org/packages/noldors/phpcsfixer-rules.json > /dev/null
       - name: Find a release already made for this commit
@@ -97,7 +92,7 @@ jobs:
           default_bump: patch
           commit_analyzer_preset: conventionalcommits
           force_update: false
-      - name: Refresh Packagist and verify the published commit
+      - name: Verify the commit indexed by the Packagist webhook
         env:
           RELEASE_TAG: ${{ steps.version.outputs.existing || steps.tag.outputs.new_tag }}
         run: |
