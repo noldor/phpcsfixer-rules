@@ -9,12 +9,26 @@ the physical call line exceeds `max_line_length`, or the argument list already
 contains a newline. Empty calls and first-class callable placeholders are left
 unchanged.
 
-Line breaks inside an anonymous function's body do not make the surrounding
-argument list multiline. A short header such as
+Line breaks inside an array literal or an anonymous function's body do not make
+the surrounding argument list multiline. A short header such as
 `Schema::create('users', static function (Blueprint $table): void {` stays on one
 line while its body keeps its own lines. The argument-count and physical header
 width limits still apply, as do existing breaks between arguments or within the
 closure signature. Already expanded argument lists are not collapsed.
+
+A multiline array can keep its opening bracket beside the call's opening
+parenthesis:
+
+```php
+Context::add([
+    'correlationId' => $correlationId,
+    'executionId' => $executionId,
+    'source' => 'http',
+]);
+```
+
+This applies to short and long array syntax, named arguments and unpacking.
+Line breaks in array access expressions still select the surrounding call.
 
 ## Configuration
 
