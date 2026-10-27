@@ -222,7 +222,7 @@ final class Layout
         }
 
         for ($index = $start; $index < $end; ++$index) {
-            if (! $tokens[$index]->isWhitespace()) {
+            if (! $tokens[$index]->isGivenKind(\T_WHITESPACE)) {
                 continue;
             }
             $content = \preg_replace_callback(

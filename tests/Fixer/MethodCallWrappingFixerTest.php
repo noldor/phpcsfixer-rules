@@ -71,6 +71,11 @@ final class MethodCallWrappingFixerTest extends FixerTestCase
             "<?php\n\$scalar->parseLiteral(new StringValueNode(['value' => \$value]),);\n",
         ];
 
+        yield 'outer call wraps after its inner argument was compacted' => [
+            "<?php\n\$service->consume(\$service->transform(\n    'a source value for the transformation',\n));\n",
+            "<?php\n\$service->consume(\n    \$service->transform('a source value for the transformation',)\n);\n",
+        ];
+
         yield 'two short arguments ignore an outer closure header' => [
             "<?php\nContext::scope(static function (): void { ContextJob::dispatch('retry', retry: true); }, data: ['source' => 'http']);\n",
             "<?php\nContext::scope(static function (): void { ContextJob::dispatch('retry', retry: true); }, data: ['source' => 'http']);\n",
