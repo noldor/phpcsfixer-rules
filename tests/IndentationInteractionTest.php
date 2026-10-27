@@ -69,9 +69,7 @@ final class IndentationInteractionTest extends TestCase
     public function testConfigurationHonorsDisabledNativeRulesFromTheFinalConfiguration(): void
     {
         $config = Config::create(__DIR__);
-        $config->setRules(
-            [...Config::rules(), 'strict_param' => false],
-        );
+        $config->setRules([...Config::rules(), 'strict_param' => false]);
         $input = "<?php\n\$found = in_array(\$needle, \$values);\n";
         $actual = $this->format($input, $config);
 
@@ -83,9 +81,7 @@ final class IndentationInteractionTest extends TestCase
     public function testConfigurationHonorsNativeRuleOptions(): void
     {
         $config = Config::create(__DIR__);
-        $config->setRules(
-            [...Config::rules(), 'concat_space' => ['spacing' => 'none']],
-        );
+        $config->setRules([...Config::rules(), 'concat_space' => ['spacing' => 'none']]);
         $prefix = "\$o->run(\$value . '";
         $suffix = "');";
         $line = $prefix . \str_repeat('x', 101 - \mb_strlen($prefix . $suffix)) . $suffix;
@@ -112,9 +108,7 @@ final class IndentationInteractionTest extends TestCase
     public function testConfigurationHonorsDisabledLayoutRules(): void
     {
         $config = Config::create(__DIR__);
-        $config->setRules(
-            [...Config::rules(), 'Noldors/method_call_wrapping' => false],
-        );
+        $config->setRules([...Config::rules(), 'Noldors/method_call_wrapping' => false]);
         $actual = $this->format("<?php\n\$o->run(1, 2, 3, 4);\n", $config);
 
         $this->assertStringContainsString('$o->run(1, 2, 3, 4)', $actual);

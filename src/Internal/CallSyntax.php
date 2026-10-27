@@ -45,6 +45,32 @@ final class CallSyntax
         return $starts;
     }
 
+    public static function isArrayArgument(Tokens $tokens, int $first, int $last): bool
+    {
+        $next = $tokens->getNextMeaningfulToken($first);
+
+        if (null !== $next && $tokens[$next]->isGivenKind(CT::T_NAMED_ARGUMENT_COLON)) {
+            $first = $tokens->getNextMeaningfulToken($next);
+            \assert(null !== $first);
+        }
+
+        if ($tokens[$first]->isGivenKind(\T_ELLIPSIS)) {
+            $first = $tokens->getNextMeaningfulToken($first);
+            \assert(null !== $first);
+        }
+
+        if (! $tokens[$first]->isGivenKind([\T_ARRAY, CT::T_ARRAY_BRACKET_OPEN])) {
+            return false;
+        }
+
+        $open = $tokens[$first]->isGivenKind(\T_ARRAY) ? $tokens->getNextMeaningfulToken($first) : $first;
+        \assert(null !== $open);
+        $block = Tokens::detectBlockType($tokens[$open]);
+        \assert(null !== $block);
+
+        return $tokens->findBlockEnd($block['type'], $open) === $last;
+    }
+
     public static function isConstructorReceiver(Tokens $tokens, int $receiver): bool
     {
         if ($tokens[$receiver]->equals(']')) {

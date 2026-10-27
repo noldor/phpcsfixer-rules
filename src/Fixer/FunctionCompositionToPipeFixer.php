@@ -48,9 +48,7 @@ final class FunctionCompositionToPipeFixer extends AbstractWrappingFixer
 
     public function isCandidate(Tokens $tokens): bool
     {
-        return $tokens->isAnyTokenKindsFound(
-            [\T_STRING, \T_NAME_FULLY_QUALIFIED, \T_NAME_QUALIFIED, \T_PIPE],
-        );
+        return $tokens->isAnyTokenKindsFound([\T_STRING, \T_NAME_FULLY_QUALIFIED, \T_NAME_QUALIFIED, \T_PIPE]);
     }
 
     protected function createConfigurationDefinition(): FixerConfigurationResolverInterface

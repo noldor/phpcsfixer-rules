@@ -159,9 +159,7 @@ final class PresetTest extends TestCase
     {
         $config = Config::create(__DIR__);
         $finder = Finder::create()->in(__DIR__)->notPath('Fixtures');
-        $config->setRules(
-            [...Config::rules(), 'strict_param' => false],
-        );
+        $config->setRules([...Config::rules(), 'strict_param' => false]);
         $config->setFinder($finder);
 
         $this->assertFalse($config->getRules()['strict_param']);

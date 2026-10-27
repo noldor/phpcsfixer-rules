@@ -18,12 +18,19 @@ final class Layout
         );
     }
 
-    public static function spanWidth(Tokens $tokens, int $start, int $end, string $indent): int
+    public static function spanWidth(Tokens $tokens, int $start, int $end, string $prefix, string $suffix = ''): int
+    {
+        return self::width(
+            $prefix . self::firstLine($tokens, $start, $end) . $suffix,
+        );
+    }
+
+    public static function firstLine(Tokens $tokens, int $start, int $end): string
     {
         $line = \preg_split('/\\r\\n|\\n|\\r/', $tokens->generatePartialCode($start, $end), 2);
         \assert(false !== $line);
 
-        return self::width($indent . $line[0]);
+        return $line[0];
     }
 
     public static function onlyClosingLine(Tokens $tokens, int $index): bool
@@ -253,9 +260,7 @@ final class Layout
         $previous = $tokens->getPrevMeaningfulToken($index);
 
         if (null !== $previous
-            && $tokens[$previous]->isGivenKind(
-                [\T_OBJECT_OPERATOR, \T_NULLSAFE_OBJECT_OPERATOR, \T_DOUBLE_COLON],
-            )
+            && $tokens[$previous]->isGivenKind([\T_OBJECT_OPERATOR, \T_NULLSAFE_OBJECT_OPERATOR, \T_DOUBLE_COLON])
         ) {
             return null;
         }
@@ -268,9 +273,7 @@ final class Layout
         $previous = $tokens->getPrevMeaningfulToken($index);
 
         if (null !== $previous
-            && $tokens[$previous]->isGivenKind(
-                [\T_OBJECT_OPERATOR, \T_NULLSAFE_OBJECT_OPERATOR, \T_DOUBLE_COLON],
-            )
+            && $tokens[$previous]->isGivenKind([\T_OBJECT_OPERATOR, \T_NULLSAFE_OBJECT_OPERATOR, \T_DOUBLE_COLON])
         ) {
             return null;
         }
