@@ -97,7 +97,9 @@ final class PerFileRuleSelectionTest extends TestCase
             );
             $result = \file_get_contents($root . '/example.php');
 
-            return false === $result ? throw new RuntimeException('Cannot read formatted fixture.') : $result;
+            return false === $result
+                ? throw new RuntimeException('Cannot read formatted fixture.')
+                : $result;
         } finally {
             $filesystem->remove($root);
         }

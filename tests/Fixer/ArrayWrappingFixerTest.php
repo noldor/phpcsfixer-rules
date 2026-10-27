@@ -25,6 +25,13 @@ final class ArrayWrappingFixerTest extends FixerTestCase
     {
         yield 'short literal' => ['<?php $values = [1, 2];', '<?php $values = [1, 2];'];
 
+        $longSibling = "<?php\n\$o->run([1, 2], '" . \str_repeat('x', 100) . "');\n";
+
+        yield 'a long following argument does not select a short array' => [
+            $longSibling,
+            $longSibling,
+        ];
+
         yield 'empty literal' => ["<?php\n\$values = [ ];", "<?php\n\$values = [ ];"];
 
         yield 'empty commented literal' => [

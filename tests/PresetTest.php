@@ -35,12 +35,12 @@ final class PresetTest extends TestCase
         $this->assertSame($expected, $actual);
     }
 
-    public function testTheThreeLayoutRulesAreTheOnlyAdditions(): void
+    public function testTheLayoutRulesAreTheOnlyAdditions(): void
     {
         $rules = $this->entrypointRules();
         $custom = \array_filter($rules, static fn (string $name): bool => \str_starts_with($name, 'Noldors/'), \ARRAY_FILTER_USE_KEY);
 
-        $this->assertCount(273, $rules);
+        $this->assertCount(274, $rules);
         $this->assertSame(
             [
                 'Noldors/fluent_chain_wrapping' => ['max_line_length' => 100],
@@ -49,6 +49,7 @@ final class PresetTest extends TestCase
                     'max_single_line_arguments' => 3,
                 ],
                 'Noldors/array_wrapping' => ['max_line_length' => 100],
+                'Noldors/conditional_expression_wrapping' => ['max_line_length' => 100],
             ],
             $custom,
         );
@@ -67,6 +68,7 @@ final class PresetTest extends TestCase
                 'Noldors/fluent_chain_wrapping',
                 'Noldors/method_call_wrapping',
                 'Noldors/array_wrapping',
+                'Noldors/conditional_expression_wrapping',
             ],
             \array_map(static fn ($fixer): string => $fixer->getName(), $config->getCustomFixers()),
         );
@@ -137,7 +139,8 @@ final class PresetTest extends TestCase
             do {
                 foreach ([$reflection, ...$reflection->getTraits()] as $type) {
                     if (\str_starts_with($type->getName(), 'PhpCsFixer\\')
-                        && \str_contains($type->getDocComment() ?: '', '@internal')) {
+                        && \str_contains($type->getDocComment() ?: '', '@internal')
+                    ) {
                         $internalTypes[] = $type->getName();
                     }
                 }

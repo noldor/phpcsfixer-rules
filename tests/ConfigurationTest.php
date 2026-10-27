@@ -11,9 +11,68 @@ use PhpCsFixer\RuleSet\RuleSet;
 use PHPUnit\Framework\TestCase;
 use PhpCsFixer\Tokenizer\Tokens;
 use PhpCsFixer\Fixer\FixerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 final class ConfigurationTest extends TestCase
 {
+    #[DataProvider('readableExpressions')]
+    public function testTheFullPresetChoosesTheExpressionBoundary(string $input, string $expected): void
+    {
+        $this->assertSame($expected, $this->format($input));
+        $this->assertSame($expected, $this->format($expected));
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function readableExpressions(): iterable
+    {
+        $long = \str_repeat('x', 85);
+
+        yield 'ternary condition branches keep their scope' => [
+            "<?php\nif (\$pick ? \$a && \$b : \$c && \\check('{$long}')) {}\n",
+            "<?php\n\ndeclare(strict_types = 1);\n\nif (\$pick\n    ? \$a && \$b\n    : \$c && \\check('{$long}')\n) {\n}\n",
+        ];
+
+        yield 'explicitly grouped ternary condition is retained' => [
+            "<?php\n\$value = (\$first && \\check('{$long}')) ? \$yes : \$no;\n",
+            "<?php\n\ndeclare(strict_types = 1);\n\$value = (\$first && \\check('{$long}'))\n    ? \$yes\n    : \$no;\n",
+        ];
+
+        yield 'sibling ternaries in arrays keep independent indentation' => [
+            "<?php\n\$values = [\$a ? \\check('{$long}') : \$b, \$c ? \\check('{$long}') : \$d];\n",
+            "<?php\n\ndeclare(strict_types = 1);\n\$values = [\n    \$a\n        ? \\check('{$long}')\n        : \$b,\n    \$c\n        ? \\check('{$long}')\n        : \$d,\n];\n",
+        ];
+
+        yield 'sibling ternaries in arguments keep independent indentation' => [
+            "<?php\n\$o->run(\$a ? \\check('{$long}') : \$b, \$c ? \\check('{$long}') : \$d);\n",
+            "<?php\n\ndeclare(strict_types = 1);\n\$o->run(\n    \$a\n        ? \\check('{$long}')\n        : \$b,\n    \$c\n        ? \\check('{$long}')\n        : \$d,\n);\n",
+        ];
+
+        yield 'long boolean condition' => [
+            "<?php\n\ndeclare(strict_types = 1);\nif (\$result instanceof Deferred || \$result instanceof Promise || Executor::getDefaultPromiseAdapter()->isThenable(\$result)) {\n    \\consume(\$result);\n}\n",
+            "<?php\n\ndeclare(strict_types = 1);\n\nif (\$result instanceof Deferred\n    || \$result instanceof Promise\n    || Executor::getDefaultPromiseAdapter()->isThenable(\$result)\n) {\n    \\consume(\$result);\n}\n",
+        ];
+
+        yield 'boolean condition in a ternary assignment' => [
+            "<?php\n\ndeclare(strict_types = 1);\n\$correlationId = \\is_string(\$header) && Str::isUuid(\$header) && '00000000-0000-0000-0000-000000000000' !== \$header ? \\mb_strtolower(\$header) : \$executionId;\n",
+            "<?php\n\ndeclare(strict_types = 1);\n\$correlationId = \\is_string(\$header)\n    && Str::isUuid(\$header)\n    && '00000000-0000-0000-0000-000000000000' !== \$header\n        ? \\mb_strtolower(\$header)\n        : \$executionId;\n",
+        ];
+
+        $factory = "<?php\n\ndeclare(strict_types = 1);\nUser::factory()->create([\n    'name' => 'Test User',\n    'email' => 'test@example.com',\n]);\n";
+
+        yield 'multiline array body keeps a compact factory chain' => [$factory, $factory];
+
+        $command = "<?php\n\ndeclare(strict_types = 1);\nArtisan::command('inspire', function (): void {\n    \$this->comment(Inspiring::quote());\n})->purpose('Display an inspiring quote');\n";
+
+        yield 'multiline closure body keeps a compact command continuation' => [$command, $command];
+
+        yield 'short array before a long second argument' => [
+            "<?php\n\ndeclare(strict_types = 1);\n\$this->assertSame([1, 2], \\array_map(static fn (\$record): mixed => \$record->extra['jobAttempt'], \$retry));\n",
+            "<?php\n\ndeclare(strict_types = 1);\n\$this->assertSame(\n    [1, 2],\n    \\array_map(static fn (\$record): mixed => \$record->extra['jobAttempt'], \$retry),\n);\n",
+        ];
+    }
+
     public function testTheFullPresetKeepsACompactHeaderWithAMultilineArray(): void
     {
         $input = <<<'PHP'
@@ -53,6 +112,15 @@ final class ConfigurationTest extends TestCase
     {
         $input = "<?php\n\$o->run(1, 2, 3, 4)->next();\n";
         $expected = "<?php\n\ndeclare(strict_types = 1);\n\$o->run(\n    1,\n    2,\n    3,\n    4,\n)\n    ->next();\n";
+
+        $this->assertSame($expected, $this->format($input));
+        $this->assertSame($expected, $this->format($expected));
+    }
+
+    public function testMovingAContinuationReindentsItsMultilineArrayInTheSamePass(): void
+    {
+        $input = "<?php\nUser::factory()->create([\n    'name' => 'Test User',\n])->finish(1, 2, 3, 4);\n";
+        $expected = "<?php\n\ndeclare(strict_types = 1);\nUser::factory()\n    ->create([\n        'name' => 'Test User',\n    ])\n    ->finish(\n        1,\n        2,\n        3,\n        4,\n    );\n";
 
         $this->assertSame($expected, $this->format($input));
         $this->assertSame($expected, $this->format($expected));
@@ -198,10 +266,12 @@ final class ConfigurationTest extends TestCase
     {
         $tokens = \array_filter(\token_get_all($code, \TOKEN_PARSE), static fn (array|string $token): bool => ! \is_array($token) || \T_WHITESPACE !== $token[0]);
 
-        return \array_values(\array_map(static fn (array|string $token): array|string => \is_array($token) ? [
-            $token[0],
-            $token[1],
-        ] : $token, $tokens));
+        return \array_values(\array_map(static fn (array|string $token): array|string => \is_array($token)
+            ? [
+                $token[0],
+                $token[1],
+            ]
+            : $token, $tokens));
     }
 
     private function format(string $code): string

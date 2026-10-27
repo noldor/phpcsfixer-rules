@@ -756,4 +756,7 @@ return [
     'Noldors/array_wrapping' => [
         'max_line_length' => 100,
     ],
+    'Noldors/conditional_expression_wrapping' => [
+        'max_line_length' => 100,
+    ],
 ];

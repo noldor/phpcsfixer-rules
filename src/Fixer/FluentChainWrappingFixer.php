@@ -82,6 +82,18 @@ final class FluentChainWrappingFixer extends AbstractWrappingFixer
         \krsort($breaks);
 
         foreach ($breaks as $index => $indent) {
+            $link = $this->chainLink($tokens, $index);
+            \assert(null !== $link);
+            Layout::reindent(
+                $tokens,
+                $index,
+                $link['end'],
+                Layout::indentAt(
+                    $tokens,
+                    $index,
+                ),
+                $indent,
+            );
             Layout::breakBefore(
                 $tokens,
                 $index,
@@ -136,9 +148,11 @@ final class FluentChainWrappingFixer extends AbstractWrappingFixer
      */
     private function chainLink(Tokens $tokens, int $index): array|null
     {
-        if (! $tokens[$index]->isObjectOperator() && ! $tokens[$index]->isGivenKind(
-            \T_DOUBLE_COLON,
-        )) {
+        if (! $tokens[$index]->isObjectOperator()
+            && ! $tokens[$index]->isGivenKind(
+                \T_DOUBLE_COLON,
+            )
+        ) {
             return null;
         }
 
@@ -154,7 +168,9 @@ final class FluentChainWrappingFixer extends AbstractWrappingFixer
             $member = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_BRACE, $member);
         } elseif (! $tokens[$member]->isGivenKind(
             [\T_STRING, \T_VARIABLE],
-        ) && ! $tokens[$member]->isKeyword()) {
+        )
+            && ! $tokens[$member]->isKeyword()
+        ) {
             return null;
         }
 
@@ -175,7 +191,9 @@ final class FluentChainWrappingFixer extends AbstractWrappingFixer
             $tokens,
             $open,
             $close,
-        ) ? null : ['end' => $close, 'call' => true];
+        )
+            ? null
+            : ['end' => $close, 'call' => true];
     }
 
     private function isCallableReference(Tokens $tokens, int $open, int $close): bool
@@ -200,16 +218,17 @@ final class FluentChainWrappingFixer extends AbstractWrappingFixer
             return true;
         }
 
-        $code = $tokens->generatePartialCode($chain['calls'][0], $chain['end']);
-
-        if (\str_contains($code, "\n") || \str_contains($code, "\r")) {
+        if (Layout::isMultiline($tokens, $chain['calls'][0], $chain['end'])) {
             return true;
         }
 
-        return Layout::lineWidth(
-            $tokens,
-            $chain['calls'][0],
-        ) > $this->configuration['max_line_length'];
+        foreach ($chain['calls'] as $call) {
+            if (Layout::lineWidth($tokens, $call) > $this->configuration['max_line_length']) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function startsContinuationLine(Tokens $tokens, int $index): bool

@@ -1,7 +1,7 @@
 # Noldors PHP-CS-Fixer rules
 
 One reusable PHP-CS-Fixer configuration containing the complete captured Pint
-profile: 270 native rule entries and three multiline layout rules, for 273
+profile: 270 native rule entries and four multiline layout rules, for 274
 entries in total. Custom wrapping uses a maximum
 inline width of 100 columns and at most three inline method arguments.
 
@@ -23,7 +23,7 @@ Create or update the project's `.php-cs-fixer.dist.php`:
 return Noldors\PhpCsFixer\Config::create(__DIR__);
 ```
 
-The factory registers the three layout fixers through the supported custom-fixer
+The factory registers the four layout fixers through the supported custom-fixer
 API, enables the complete preset and allows its risky native rules, matching
 Pint's configuration. Native indentation or spacing changes can require another
 formatting run before the dry-run check passes. Its finder scans PHP files under
@@ -46,6 +46,7 @@ vendor/bin/php-cs-fixer fix --dry-run --diff
 - [Fluent chain wrapping](docs/fluent-chain-wrapping.md)
 - [Method call wrapping](docs/method-call-wrapping.md)
 - [Array wrapping](docs/array-wrapping.md)
+- [Conditional expression wrapping](docs/conditional-expression-wrapping.md)
 - [Migrating a project from Pint](docs/migration-from-pint.md)
 
 Long arrays used directly as a `foreach` iterable still require a meaningful
