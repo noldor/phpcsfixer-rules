@@ -7,13 +7,13 @@ namespace Noldors\PhpCsFixer\Tests\Fixer;
 use Throwable;
 use SplFileInfo;
 use InvalidArgumentException;
-use PHPUnit\Framework\TestCase;
 use PhpCsFixer\Tokenizer\Tokens;
 use PhpCsFixer\WhitespacesFixerConfig;
+use Noldors\PhpCsFixer\Tests\FixerTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Noldors\PhpCsFixer\Fixer\FunctionCompositionToPipeFixer;
 
-final class FunctionCompositionToPipeFixerTest extends TestCase
+final class FunctionCompositionToPipeFixerTest extends FixerTestCase
 {
     #[DataProvider('compositions')]
     public function testPreservesCompositionSemantics(string $input, string $expected): void
@@ -76,6 +76,102 @@ final class FunctionCompositionToPipeFixerTest extends TestCase
         }
     }
 
+    #[DataProvider('closingLinePipelines')]
+    public function testClosingLinePipelinesPreserveTokensAndSettle(string $input, string $expected): void
+    {
+        $this->assertFixerOutput(new FunctionCompositionToPipeFixer(), $input, $expected);
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function closingLinePipelines(): iterable
+    {
+        $call = "<?php\n\$outside = \\array_filter(\n    \$history,\n    static fn (\$entry): bool => 'outside.example.test' === \$entry['request']->getUri()->getHost(),\n)";
+
+        yield 'multiline call closes beside its short pipe' => [
+            $call . "\n    |> \\array_values(...);\n",
+            $call . " |> \\array_values(...);\n",
+        ];
+
+        yield 'existing compact closing line is retained' => [
+            $call . " |> \\array_values(...);\n",
+            $call . " |> \\array_values(...);\n",
+        ];
+
+        yield 'following operations retain separate lines' => [
+            $call . " |> \\array_values(...) |> \\count(...);\n",
+            $call . " |> \\array_values(...)\n    |> \\count(...);\n",
+        ];
+
+        yield 'multiline array closes beside a user callable' => [
+            "<?php\n\$result = [\n    1,\n    2,\n]\n    |> custom(...);\n",
+            "<?php\n\$result = [\n    1,\n    2,\n] |> custom(...);\n",
+        ];
+
+        yield 'closure call closes beside its continuation' => [
+            "<?php\n\$result = produce(static function (): void {\n    work();\n})\n    |> custom(...);\n",
+            "<?php\n\$result = produce(static function (): void {\n    work();\n}) |> custom(...);\n",
+        ];
+
+        yield 'a moved callable body keeps its indentation' => [
+            "<?php\n\$result = produce(\n    \$items,\n)\n    |> (static function (array \$items): array {\n        return \$items;\n    });\n",
+            "<?php\n\$result = produce(\n    \$items,\n) |> (static function (array \$items): array {\n    return \$items;\n});\n",
+        ];
+
+        yield 'compact operator tokenization is supported' => [
+            "<?php\n\$result = produce(\n    \$items,\n)|> custom(...);\n",
+            "<?php\n\$result = produce(\n    \$items,\n) |> custom(...);\n",
+        ];
+
+        yield 'nested pipe edits keep source boundaries stable' => [
+            "<?php\n\$result = produce(\n    \$items,\n)\n    |> (static fn (\$value): array => \$value|> custom(...));\n",
+            "<?php\n\$result = produce(\n    \$items,\n) |> (static fn (\$value): array => \$value\n    |> custom(...));\n",
+        ];
+
+        yield 'closing-only exception also applies after an intermediate closure' => [
+            "<?php\n\$result = produce()\n    |> (static function (\$value) {\n        return \$value;\n    })\n    |> custom(...);\n",
+            "<?php\n\$result = produce()\n    |> (static function (\$value) {\n        return \$value;\n    }) |> custom(...);\n",
+        ];
+        $name = \str_repeat('x', 105);
+
+        yield 'nested stage width uses the final outer callable indentation' => [
+            "<?php\n\$result = produce(\n    \$items,\n)\n    |> (static function (array \$items): array {\n        \$items = normalise(\$items);\n        return produce(\n            \$items,\n        )\n            |> {$name}(...);\n    });\n",
+            "<?php\n\$result = produce(\n    \$items,\n) |> (static function (array \$items): array {\n    \$items = normalise(\$items);\n    return produce(\n        \$items,\n    ) |> {$name}(...);\n});\n",
+        ];
+
+        foreach (['(', 'consume('] as $prefix) {
+            foreach ([120, 121] as $width) {
+                $name = \str_repeat('x', $width - \mb_strlen(') |> (...));'));
+                $input = "<?php\n\$result = {$prefix}produce(\n    \$items,\n)\n    |> {$name}(...));\n";
+                $expected = 120 === $width ? \str_replace(")\n    |>", ') |>', $input) : $input;
+
+                yield 'enclosing suffix ' . $prefix . ' at ' . $width . ' columns' => [$input, $expected];
+            }
+        }
+
+        $literal = \str_repeat('x', 90);
+
+        yield 'nested first-stage arguments use final enclosing indentation' => [
+            "<?php\n\$result = \$items |> (static function (array \$items): array {\n    work();\n    return produce('{$literal}', \$items) |> custom(...);\n});\n",
+            "<?php\n\$result = \$items\n    |> (static function (array \$items): array {\n        work();\n        return produce(\n            '{$literal}',\n            \$items\n        ) |> custom(...);\n    });\n",
+        ];
+
+        foreach (['// keep', '/* keep */'] as $comment) {
+            $input = $call . " {$comment}\n    |> custom(...);\n";
+
+            yield 'comment barrier ' . $comment => [$input, $input];
+        }
+
+        foreach ([120, 121] as $width) {
+            $name = \str_repeat('x', $width - \mb_strlen(') |> (...);'));
+            $input = $call . "\n    |> {$name}(...);\n";
+            $expected = $call . (120 === $width ? ' ' : "\n    ") . "|> {$name}(...);\n";
+
+            yield 'closing line at ' . $width . ' columns' => [$input, $expected];
+        }
+    }
+
     #[DataProvider('runtimeExpressions')]
     public function testPreservesRuntimeValuesAndErrors(string $expression): void
     {
@@ -130,6 +226,27 @@ final class FunctionCompositionToPipeFixerTest extends TestCase
             "<?php\r\n\t\$result = \\array_filter(\r\n\t\t\$values,\r\n\t\t\$predicate\r\n\t)\r\n\t\t|> \\array_values(...);\r\n",
             $tokens->generateCode(),
         );
+    }
+
+    public function testClosingLineUsesConfiguredWhitespace(): void
+    {
+        $fixer = new FunctionCompositionToPipeFixer();
+        $fixer->setWhitespacesConfig(new WhitespacesFixerConfig("\t", "\r\n"));
+        $input = "<?php\r\n\t\$result = produce(\r\n\t\t\$items,\r\n\t)\r\n\t\t|> custom(...);\r\n";
+        $expected = "<?php\r\n\t\$result = produce(\r\n\t\t\$items,\r\n\t) |> custom(...);\r\n";
+
+        $this->assertFixerOutput($fixer, $input, $expected);
+    }
+
+    public function testNestedArrowHeadersSettleAfterExplicitFormattingRuns(): void
+    {
+        $literal = \str_repeat('x', 90);
+        $input = "<?php\n\$result = produce(\n    \$items,\n)\n    |> (static fn (\$value) => produce('{$literal}', \$value) |> custom(...));\n";
+        $formatted = $this->format($this->format($input));
+        $expected = "<?php\n\$result = produce(\n    \$items,\n) |> (static fn (\$value) => produce(\n    '{$literal}',\n    \$value\n) |> custom(...));\n";
+
+        $this->assertSame($expected, $formatted);
+        $this->assertFixerOutput(new FunctionCompositionToPipeFixer(), $formatted, $formatted);
     }
 
     public function testRejectsInvalidWidth(): void
