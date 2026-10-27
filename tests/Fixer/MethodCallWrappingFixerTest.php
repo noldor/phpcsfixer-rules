@@ -83,6 +83,78 @@ final class MethodCallWrappingFixerTest extends FixerTestCase
             "<?php\n\$o->run([1, 2, 3, 4], combine(1, 2, 3, 4), 3);\n",
         ];
 
+        $context = <<<'PHP'
+            <?php
+            Context::add([
+                'correlationId' => $correlationId,
+                'executionId' => $executionId,
+                'source' => 'http',
+            ]);
+
+            PHP;
+
+        yield 'array contents keep a compact call header' => [$context, $context];
+
+        $namedArray = "<?php\n\$o?->run(options: [\n    'nested' => [1, 2, 3, 4],\n], enabled: true);\n";
+
+        yield 'named array with a following argument' => [$namedArray, $namedArray];
+
+        $unpackedArray = "<?php\n\$o->run(...[\n    1,\n    2,\n]);\n";
+
+        yield 'unpacked array counts once' => [$unpackedArray, $unpackedArray];
+
+        $longArray = "<?php\n\$o->run(array(\n    'first' => 1,\n    'second' => 2,\n));\n";
+
+        yield 'long array syntax keeps a compact call header' => [$longArray, $longArray];
+
+        $nestedArray = "<?php\n\$o->run([\n    \$o->inner(\n        1,\n        2,\n        3,\n        4\n    ),\n]);\n";
+
+        yield 'nested calls inside an array do not expand the surrounding call' => [
+            $nestedArray,
+            $nestedArray,
+        ];
+
+        yield 'argument limit still applies to arrays' => [
+            "<?php\n\$o->run(1, 2, 3, [\n    4,\n]);\n",
+            "<?php\n\$o->run(\n    1,\n    2,\n    3,\n    [\n        4,\n    ]\n);\n",
+        ];
+
+        yield 'newline between array arguments still selects the call' => [
+            "<?php\n\$o->run([\n    1,\n],\n    2);\n",
+            "<?php\n\$o->run(\n    [\n        1,\n    ],\n    2\n);\n",
+        ];
+
+        $expandedArray = "<?php\n\$o->run(\n    [\n        1,\n    ],\n);\n";
+
+        yield 'already expanded array arguments are not collapsed' => [
+            $expandedArray,
+            $expandedArray,
+        ];
+
+        yield 'array access line breaks still select the call' => [
+            "<?php\n\$o->run(\$values[\n    0\n]);\n",
+            "<?php\n\$o->run(\n    \$values[\n        0\n    ]\n);\n",
+        ];
+
+        yield 'array method name does not hide argument list breaks' => [
+            "<?php\n\$o->run(Handler::array(\n    1\n));\n",
+            "<?php\n\$o->run(\n    Handler::array(\n        1\n    )\n);\n",
+        ];
+
+        $longArrayHeader = \str_repeat('x', 100);
+
+        yield 'long call header still selects an array argument' => [
+            "<?php\nHandler::{$longArrayHeader}([\n    1,\n]);\n",
+            "<?php\nHandler::{$longArrayHeader}(\n    [\n        1,\n    ]\n);\n",
+        ];
+
+        $longArrayBody = "<?php\n\$o->run([\n    '{$longArrayHeader}',\n]);\n";
+
+        yield 'long array contents do not affect the call header' => [
+            $longArrayBody,
+            $longArrayBody,
+        ];
+
         yield 'nested method calls' => [
             "<?php\n\$o->outer(\$o->inner(1, 2, 3, 4));\n",
             "<?php\n\$o->outer(\n    \$o->inner(\n        1,\n        2,\n        3,\n        4\n    )\n);\n",

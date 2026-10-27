@@ -123,6 +123,20 @@ final class MethodCallWrappingFixer extends AbstractWrappingFixer
     private function isArgumentListMultiline(Tokens $tokens, int $open, int $close): bool
     {
         for ($index = $open + 1; $index < $close; ++$index) {
+            $array = $this->arrayLiteralStart($tokens, $index);
+
+            if (null !== $array) {
+                if ($tokens->isPartialCodeMultiline($index, $array)) {
+                    return true;
+                }
+
+                $block = Tokens::detectBlockType($tokens[$array]);
+                \assert(null !== $block);
+                $index = $tokens->findBlockEnd($block['type'], $array);
+
+                continue;
+            }
+
             $parameters = $tokens[$index]->isGivenKind(\T_FUNCTION)
                 ? $this->closureParametersStart($tokens, $index)
                 : null;
@@ -147,6 +161,27 @@ final class MethodCallWrappingFixer extends AbstractWrappingFixer
         }
 
         return false;
+    }
+
+    private function arrayLiteralStart(Tokens $tokens, int $index): int|null
+    {
+        if ($tokens[$index]->isGivenKind(CT::T_ARRAY_BRACKET_OPEN)) {
+            return $index;
+        }
+
+        if (! $tokens[$index]->isGivenKind(\T_ARRAY)) {
+            return null;
+        }
+
+        $previous = $tokens->getPrevMeaningfulToken($index);
+
+        if (null !== $previous && $tokens[$previous]->isGivenKind(
+            [\T_OBJECT_OPERATOR, \T_NULLSAFE_OBJECT_OPERATOR, \T_DOUBLE_COLON],
+        )) {
+            return null;
+        }
+
+        return $tokens->getNextMeaningfulToken($index);
     }
 
     private function closureParametersStart(Tokens $tokens, int $index): int|null

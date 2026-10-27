@@ -14,6 +14,24 @@ use PhpCsFixer\Fixer\FixerInterface;
 
 final class ConfigurationTest extends TestCase
 {
+    public function testTheFullPresetKeepsACompactHeaderWithAMultilineArray(): void
+    {
+        $input = <<<'PHP'
+            <?php
+
+            declare(strict_types = 1);
+            Context::add([
+                'correlationId' => $correlationId,
+                'executionId' => $executionId,
+                'source' => 'http',
+            ]);
+
+            PHP;
+
+        $this->assertSame($input, $this->format($input));
+        $this->assertSame($input, $this->format($this->format($input)));
+    }
+
     public function testTheFullPresetKeepsAShortCallHeaderWithAMultilineClosure(): void
     {
         $input = <<<'PHP'
@@ -54,7 +72,7 @@ final class ConfigurationTest extends TestCase
     {
         $value = \str_repeat('x', 70);
         $input = "<?php\n\$result = \$service->withOptions(['first' => '{$value}', 'second' => true])->send(1, 2, 3, 4);\n";
-        $expected = "<?php\n\ndeclare(strict_types = 1);\n\$result = \$service->withOptions(\n    [\n        'first' => '{$value}',\n        'second' => true,\n    ],\n)\n    ->send(\n        1,\n        2,\n        3,\n        4,\n    );\n";
+        $expected = "<?php\n\ndeclare(strict_types = 1);\n\$result = \$service->withOptions([\n    'first' => '{$value}',\n    'second' => true,\n])\n    ->send(\n        1,\n        2,\n        3,\n        4,\n    );\n";
 
         $this->assertSame($expected, $this->format($input));
         $this->assertSame($expected, $this->format($expected));
