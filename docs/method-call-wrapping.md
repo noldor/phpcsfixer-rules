@@ -9,6 +9,13 @@ the physical call line exceeds `max_line_length`, or the argument list already
 contains a newline. Empty calls and first-class callable placeholders are left
 unchanged.
 
+Line breaks inside an anonymous function's body do not make the surrounding
+argument list multiline. A short header such as
+`Schema::create('users', static function (Blueprint $table): void {` stays on one
+line while its body keeps its own lines. The argument-count and physical header
+width limits still apply, as do existing breaks between arguments or within the
+closure signature. Already expanded argument lists are not collapsed.
+
 ## Configuration
 
 ```php

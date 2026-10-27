@@ -123,6 +123,97 @@ final class MethodCallWrappingFixerTest extends FixerTestCase
             "<?php\n\$o->run(1, 2, 3);\n",
         ];
 
+        $migration = <<<'PHP'
+            <?php
+            Schema::create('users', static function (Blueprint $table): void {
+                $table->id();
+                $table->string('email')->unique();
+            });
+
+            PHP;
+
+        yield 'closure body does not make the argument list multiline' => [$migration, $migration];
+
+        $capturingClosure = <<<'PHP'
+            <?php
+            $o->run(1, function ($value) use ($captured): void {
+                consume($value, $captured);
+            }, 3);
+
+            PHP;
+
+        yield 'capturing closure with a following argument' => [
+            $capturingClosure,
+            $capturingClosure,
+        ];
+
+        $namedClosure = <<<'PHP'
+            <?php
+            $o->run(callback: #[Example] static function ($value = new Value([1, 2])): void {
+                consume($value);
+            });
+
+            PHP;
+
+        yield 'named attributed closure with a compound default' => [$namedClosure, $namedClosure];
+
+        $nestedClosures = <<<'PHP'
+            <?php
+            $o->run(static function (): void {
+                consume(static function (): void {
+                    consume(1);
+                });
+            }, static function (): void {
+                consume(2);
+            });
+
+            PHP;
+
+        yield 'multiple nested closures' => [$nestedClosures, $nestedClosures];
+
+        $referenceClosure = "<?php\n\$o->run(function &() use (&\$value) {\n    return \$value;\n});\n";
+
+        yield 'reference-returning closure' => [$referenceClosure, $referenceClosure];
+
+        yield 'named methods in anonymous classes are not closures' => [
+            "<?php\n\$o->run(new class { public function execute(): void {\n    consume(1);\n} });\n",
+            "<?php\n\$o->run(\n    new class { public function execute(): void {\n        consume(1);\n    } }\n);\n",
+        ];
+
+        yield 'method names using the function keyword are not closures' => [
+            "<?php\n\$o->run(Handler::function(), \$other->function(), \$other?->function());\n",
+            "<?php\n\$o->run(Handler::function(), \$other->function(), \$other?->function());\n",
+        ];
+
+        yield 'argument limit still applies to closures' => [
+            "<?php\n\$o->run(1, 2, 3, static function (): void {\n    consume(4);\n});\n",
+            "<?php\n\$o->run(\n    1,\n    2,\n    3,\n    static function (): void {\n        consume(4);\n    }\n);\n",
+        ];
+
+        yield 'newline in closure signature still selects the call' => [
+            "<?php\n\$o->run(static function (\n    \$value,\n): void {\n    consume(\$value);\n});\n",
+            "<?php\n\$o->run(\n    static function (\n        \$value,\n    ): void {\n        consume(\$value);\n    }\n);\n",
+        ];
+
+        yield 'newline between closure arguments still selects the call' => [
+            "<?php\n\$o->run(1,\n    static function (): void {\n        consume(2);\n    });\n",
+            "<?php\n\$o->run(\n    1,\n    static function (): void {\n        consume(2);\n    }\n);\n",
+        ];
+
+        $longArgument = \str_repeat('x', 100);
+
+        yield 'long call line still selects a closure argument' => [
+            "<?php\n\$o->run('{$longArgument}', static function (): void {\n    consume(1);\n});\n",
+            "<?php\n\$o->run(\n    '{$longArgument}',\n    static function (): void {\n        consume(1);\n    }\n);\n",
+        ];
+
+        $longClosureBody = "<?php\n\$o->run(static function (): void {\n    \$value = '{$longArgument}';\n});\n";
+
+        yield 'long closure body does not affect the call header' => [
+            $longClosureBody,
+            $longClosureBody,
+        ];
+
         yield 'constructors free functions declarations and attributes' => [
             "<?php\n#[Example(1, 2, 3, 4)]\nfunction run(\$a, \$b, \$c, \$d) { run(1, 2, 3, 4); new Example(1, 2, 3, 4); }\n",
             "<?php\n#[Example(1, 2, 3, 4)]\nfunction run(\$a, \$b, \$c, \$d) { run(1, 2, 3, 4); new Example(1, 2, 3, 4); }\n",
