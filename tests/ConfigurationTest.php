@@ -14,6 +14,23 @@ use PhpCsFixer\Fixer\FixerInterface;
 
 final class ConfigurationTest extends TestCase
 {
+    public function testTheFullPresetKeepsAShortCallHeaderWithAMultilineClosure(): void
+    {
+        $input = <<<'PHP'
+            <?php
+
+            declare(strict_types = 1);
+            Schema::create('users', static function (Blueprint $table): void {
+                $table->id();
+                $table->string('email')->unique();
+            });
+
+            PHP;
+
+        $this->assertSame($input, $this->format($input));
+        $this->assertSame($input, $this->format($this->format($input)));
+    }
+
     public function testArgumentCountWrappingAlsoSplitsTheChainInTheSamePass(): void
     {
         $input = "<?php\n\$o->run(1, 2, 3, 4)->next();\n";
