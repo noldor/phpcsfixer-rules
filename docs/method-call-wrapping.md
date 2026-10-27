@@ -16,7 +16,20 @@ $scalar->parseLiteral(new StringValueNode(['value' => $value]));
 
 The argument's width includes quotes, named-argument labels, unpacking and
 nested expressions, but excludes the call's receiver, name and parentheses.
-At exactly 40 characters it remains inline; at 41 it wraps.
+At exactly 40 characters it remains inline; ordinary arguments wrap at 41.
+
+A single array literal may also stay inline when the complete method expression,
+including indentation, fits `max_line_length`, even above the 40-character
+argument limit. This applies to named and unpacked array arguments and to
+`array(...)` syntax. Existing outer breaks rejoin under the same condition:
+
+```php
+Context::forget(['command', 'job', 'jobId', 'jobAttempt']);
+```
+
+Array accesses and expressions combining an array with other values retain the
+ordinary single-argument limit. Array bodies keep their own existing line breaks;
+this exception does not collapse multiline arrays or move boundary comments.
 
 Two or three arguments wrap when their method expression, including its
 indentation, exceeds `max_line_length`, or their argument list already contains

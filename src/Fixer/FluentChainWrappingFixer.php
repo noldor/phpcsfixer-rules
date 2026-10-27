@@ -42,9 +42,7 @@ final class FluentChainWrappingFixer extends AbstractWrappingFixer
 
     public function isCandidate(Tokens $tokens): bool
     {
-        return $tokens->isAnyTokenKindsFound(
-            [...Token::getObjectOperatorKinds(), \T_DOUBLE_COLON],
-        );
+        return $tokens->isAnyTokenKindsFound([...Token::getObjectOperatorKinds(), \T_DOUBLE_COLON]);
     }
 
     protected function createConfigurationDefinition(): FixerConfigurationResolverInterface

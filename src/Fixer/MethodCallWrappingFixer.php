@@ -40,9 +40,7 @@ final class MethodCallWrappingFixer extends AbstractWrappingFixer
 
     public function isCandidate(Tokens $tokens): bool
     {
-        return $tokens->isAnyTokenKindsFound(
-            [\T_OBJECT_OPERATOR, \T_NULLSAFE_OBJECT_OPERATOR, \T_DOUBLE_COLON],
-        );
+        return $tokens->isAnyTokenKindsFound([\T_OBJECT_OPERATOR, \T_NULLSAFE_OBJECT_OPERATOR, \T_DOUBLE_COLON]);
     }
 
     protected function createConfigurationDefinition(): FixerConfigurationResolverInterface
@@ -89,9 +87,7 @@ final class MethodCallWrappingFixer extends AbstractWrappingFixer
         $first = $tokens->getNextMeaningfulToken($open);
 
         if ($first === $close
-            || (null !== $first && $tokens[$first]->isGivenKind(
-                [\T_ELLIPSIS, CT::T_FIRST_CLASS_CALLABLE],
-            ) && $tokens->getNextMeaningfulToken($first) === $close)
+            || (null !== $first && $tokens[$first]->isGivenKind([\T_ELLIPSIS, CT::T_FIRST_CLASS_CALLABLE]) && $tokens->getNextMeaningfulToken($first) === $close)
         ) {
             return;
         }
@@ -107,12 +103,13 @@ final class MethodCallWrappingFixer extends AbstractWrappingFixer
 
         if (1 === $argumentCount
             && ! $multiline
-            && Layout::spanWidth(
+            && $this->fitsSingleArgument(
                 $tokens,
+                $start,
+                $open,
                 $first,
                 $last,
-                '',
-            ) <= $this->configuration['single_argument_max_length']
+            )
         ) {
             $this->compactSingleArgument(
                 $tokens,
@@ -148,6 +145,38 @@ final class MethodCallWrappingFixer extends AbstractWrappingFixer
             $this->whitespacesConfig->getIndent(),
             $this->whitespacesConfig->getLineEnding(),
         );
+    }
+
+    private function fitsSingleArgument(Tokens $tokens, int $start, int $open, int $first, int $last): bool
+    {
+        $argumentWidth = Layout::spanWidth(
+            $tokens,
+            $first,
+            $last,
+            '',
+        );
+
+        if ($argumentWidth <= $this->configuration['single_argument_max_length']) {
+            return true;
+        }
+
+        if (! CallSyntax::isArrayArgument($tokens, $first, $last)) {
+            return false;
+        }
+
+        $next = $tokens->getNextMeaningfulToken($last);
+        $suffix = null !== $next && $tokens[$next]->equals(',')
+            ? $tokens->generatePartialCode($last + 1, $next) . ')'
+            : ')';
+        $prefix = Layout::indentAt($tokens, $start) . Layout::firstLine($tokens, $start, $open);
+
+        return Layout::spanWidth(
+            $tokens,
+            $first,
+            $last,
+            $prefix,
+            $suffix,
+        ) <= $this->configuration['max_line_length'];
     }
 
     private function compactSingleArgument(Tokens $tokens, int $open, int $close, int $first, int $last, int $start): void

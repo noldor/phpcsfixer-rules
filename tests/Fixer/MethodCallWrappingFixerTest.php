@@ -23,6 +23,39 @@ final class MethodCallWrappingFixerTest extends FixerTestCase
      */
     public static function compactArguments(): iterable
     {
+        $array = "['command', 'job', 'jobId', 'jobAttempt']";
+
+        foreach (['Context::forget', '$context->forget', '$context?->forget'] as $method) {
+            $inline = "<?php\n{$method}({$array});\n";
+
+            yield 'single array stays inline: ' . $method => [$inline, $inline];
+
+            yield 'single array rejoins: ' . $method => [
+                "<?php\n{$method}(\n    {$array},\n);\n",
+                "<?php\n{$method}({$array},);\n",
+            ];
+        }
+
+        foreach (['keys: ', '...'] as $prefix) {
+            $inline = "<?php\n\$context->forget({$prefix}{$array});\n";
+
+            yield 'named or unpacked single array: ' . $prefix => [$inline, $inline];
+        }
+
+        $longSyntax = "<?php\n\$context->forget(array('command', 'job', 'jobId', 'jobAttempt'));\n";
+
+        yield 'long array syntax uses call width' => [$longSyntax, $longSyntax];
+
+        yield 'array access keeps the ordinary single-argument limit' => [
+            "<?php\n\$o->run({$array}[\$index]);\n",
+            "<?php\n\$o->run(\n    {$array}[\$index]\n);\n",
+        ];
+
+        yield 'array union keeps the ordinary single-argument limit' => [
+            "<?php\n\$o->run({$array} + \$extra);\n",
+            "<?php\n\$o->run(\n    {$array} + \$extra\n);\n",
+        ];
+
         yield 'short argument on an otherwise long line' => [
             "<?php\n\$executionId = Context::get('executionId') ?? \$event->job->uuid() ?? Str::uuid()->toString() ?? \$fallbackExecutionId;\n",
             "<?php\n\$executionId = Context::get('executionId') ?? \$event->job->uuid() ?? Str::uuid()->toString() ?? \$fallbackExecutionId;\n",
@@ -409,9 +442,7 @@ final class MethodCallWrappingFixerTest extends FixerTestCase
     public function testAcceptsCustomWidthAndArgumentLimit(): void
     {
         $fixer = new MethodCallWrappingFixer();
-        $fixer->configure(
-            ['max_line_length' => 80, 'max_single_line_arguments' => 2],
-        );
+        $fixer->configure(['max_line_length' => 80, 'max_single_line_arguments' => 2]);
 
         $this->assertFixerOutput(
             $fixer,
@@ -423,26 +454,95 @@ final class MethodCallWrappingFixerTest extends FixerTestCase
     public function testTheSingleArgumentLimitCanBeConfiguredIndependently(): void
     {
         $fixer = new MethodCallWrappingFixer();
-        $fixer->configure(
-            ['single_argument_max_length' => 5, 'max_line_length' => 120],
-        );
+        $fixer->configure(['single_argument_max_length' => 5, 'max_line_length' => 120]);
         $input = "<?php\n\$o->run('abcd');\n";
         $expected = "<?php\n\$o->run(\n    'abcd'\n);\n";
 
         $this->assertFixerOutput($fixer, $input, $expected);
-        $fixer->configure(
-            ['single_argument_max_length' => 6, 'max_line_length' => 1],
-        );
+        $fixer->configure(['single_argument_max_length' => 6, 'max_line_length' => 1]);
         $this->assertFixerOutput($fixer, $input, $input);
     }
 
     public function testShortSingleArgumentsKeepBoundaryComments(): void
     {
-        foreach (["/* before */\n    'value'", "'value' // after", "'value', /* after comma */"] as $argument) {
+        foreach ([
+            "/* before */\n    'value'",
+            "'value' // after",
+            "'value', /* after comma */",
+            "/* before */\n    ['command', 'job', 'jobId', 'jobAttempt']",
+            "['command', 'job', 'jobId', 'jobAttempt'] // after",
+            "['command', 'job', 'jobId', 'jobAttempt'], /* after comma */",
+        ] as $argument) {
             $input = "<?php\n\$o->run(\n    {$argument}\n);\n";
 
             $this->assertFixerOutput(new MethodCallWrappingFixer(), $input, $input);
         }
+    }
+
+    public function testSingleArraysUseTheConfiguredCallWidth(): void
+    {
+        foreach ([80, 120] as $limit) {
+            foreach (['x', 'я'] as $character) {
+                foreach ([$limit, $limit + 1] as $width) {
+                    $value = \str_repeat($character, $width - \mb_strlen("    \$o->run([''])"));
+                    $array = "['{$value}']";
+                    $inline = "<?php\n    \$o->run({$array});\n";
+                    $expanded = "<?php\n    \$o->run(\n        {$array}\n    );\n";
+                    $fixer = new MethodCallWrappingFixer();
+                    $fixer->configure(['max_line_length' => $limit, 'single_argument_max_length' => 5]);
+                    $expected = $width === $limit ? $inline : $expanded;
+
+                    $this->assertFixerOutput($fixer, $inline, $expected);
+                    $this->assertFixerOutput($fixer, $expanded, $expected);
+                }
+            }
+        }
+    }
+
+    public function testSingleArrayJoiningRespectsTabsAndCrLf(): void
+    {
+        $fixer = new MethodCallWrappingFixer();
+        $fixer->setWhitespacesConfig(new WhitespacesFixerConfig("\t", "\r\n"));
+        $array = "['command', 'job', 'jobId', 'jobAttempt']";
+
+        $this->assertFixerOutput(
+            $fixer,
+            "<?php\r\n\tContext::forget(\r\n\t\t{$array},\r\n\t);\r\n",
+            "<?php\r\n\tContext::forget({$array},);\r\n",
+        );
+    }
+
+    public function testSingleArrayWidthIncludesThePreservedTrailingComma(): void
+    {
+        foreach ([80, 120] as $limit) {
+            foreach ([$limit, $limit + 1] as $width) {
+                foreach (['', '  '] as $padding) {
+                    $value = \str_repeat('x', $width - \mb_strlen("\$o->run(['']{$padding},)"));
+                    $array = "['{$value}']";
+                    $inline = "<?php\n\$o->run({$array}{$padding},);\n";
+                    $expanded = "<?php\n\$o->run(\n    {$array}{$padding},\n);\n";
+                    $fixer = new MethodCallWrappingFixer();
+                    $fixer->configure(['max_line_length' => $limit, 'single_argument_max_length' => 5]);
+                    $expected = $width === $limit ? $inline : $expanded;
+
+                    $this->assertFixerOutput($fixer, $inline, $expected);
+                    $this->assertFixerOutput($fixer, $expanded, $expected);
+                }
+            }
+        }
+    }
+
+    public function testSingleArrayLiteralTabsUseTheirJoinedColumn(): void
+    {
+        $array = "['\t" . \str_repeat('x', 63) . "']";
+        $fixer = new MethodCallWrappingFixer();
+        $fixer->configure(['max_line_length' => 80]);
+
+        $this->assertFixerOutput(
+            $fixer,
+            "<?php\n\$obj->run({$array});\n",
+            "<?php\n\$obj->run(\n    {$array}\n);\n",
+        );
     }
 
     public function testMultipleArgumentsUseTheConfiguredExpressionWidth(): void

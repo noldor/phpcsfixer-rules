@@ -27,6 +27,18 @@ final class ConfigurationTest extends TestCase
      */
     public static function readableExpressions(): iterable
     {
+        $inlineArrayCall = "<?php\n\ndeclare(strict_types = 1);\nContext::forget(['command', 'job', 'jobId', 'jobAttempt']);\n";
+
+        yield 'compact: single array longer than forty characters stays inline' => [
+            $inlineArrayCall,
+            $inlineArrayCall,
+        ];
+
+        yield 'compact: expanded single array rejoins the full call' => [
+            "<?php\n\ndeclare(strict_types = 1);\nContext::forget(\n    ['command', 'job', 'jobId', 'jobAttempt'],\n);\n",
+            $inlineArrayCall,
+        ];
+
         yield 'compact: short single argument ignores coalescing suffix' => [
             "<?php\n\ndeclare(strict_types = 1);\n\$executionId = Context::get('executionId') ?? \$event->job->uuid() ?? Str::uuid()->toString();\n",
             "<?php\n\ndeclare(strict_types = 1);\n\$executionId = Context::get('executionId') ?? \$event->job->uuid() ?? Str::uuid()->toString();\n",

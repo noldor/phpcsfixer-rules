@@ -118,8 +118,10 @@ their boolean operators, and full ternaries split at `?` and `:`. These are
 wrapping thresholds, not a general hard line limit.
 
 Method calls with more than three syntactic arguments wrap. A single argument
-uses its own 40-character limit and rejoins its call when short. Two or three
-arguments use the method expression's width, independently of preceding outer
+uses its own 40-character limit and rejoins its call when short. A single array
+literal can also stay inline when its complete method expression fits 120
+columns, as in `Context::forget(['command', 'job', 'jobId', 'jobAttempt']);`.
+Two or three arguments use the method expression's width, independently of preceding outer
 expressions. Array contents and closure bodies do not force short headers or
 chains to expand. Short continuations join lines containing only closing
 delimiters, including `})->create()` and `)->getJson('/path')->assertOk()`.
