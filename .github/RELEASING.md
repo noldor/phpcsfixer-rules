@@ -6,10 +6,8 @@
 2. Complete independent review, push the task branch and open a PR into `master`.
 3. Use Conventional Commits for branch commits and the PR title, then use an ordinary merge commit. Required GitHub
    Actions checks are `Quality` and `PR title`; all review threads must be resolved.
-   Keep the branch up to date with `master`. A request for a new shared check
-   authorizes enabling auto-merge using an ordinary merge commit, subject to
-   these checks and resolved review discussions. Other tasks require the user's
-   explicit merge authorization.
+   Keep the branch up to date with `master`. Follow the workspace `AGENTS.md`
+   policy for enabling auto-merge immediately after opening the PR.
 4. After merge, Actions rechecks the resulting `master` commit. Only a successful
    quality job can start the release job, which creates an immutable tag. GitHub
    sends the signed push webhook to Packagist, and the release job verifies the
