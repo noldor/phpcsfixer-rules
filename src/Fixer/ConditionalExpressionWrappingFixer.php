@@ -53,18 +53,14 @@ final class ConditionalExpressionWrappingFixer extends AbstractWrappingFixer
                 ->setAllowedTypes(['int'])
                 ->setAllowedValues(
                     [static fn (mixed $value): bool => \is_int($value) && 0 < $value],
-                )
-                ->setDefault(100)
-                ->getOption(),
+                )->setDefault(120)->getOption(),
         ]);
     }
 
     protected function applyFix(SplFileInfo $file, Tokens $tokens): void
     {
         $statements = new ParserFactory()->createForNewestSupportedVersion()
-            ->parse(
-                $tokens->generateCode(),
-            );
+            ->parse($tokens->generateCode());
         // Give top-level siblings the same parent relationship as statements inside a block.
         $statements = new NodeTraverser(new ParentConnectingVisitor())->traverse([
             new Node\Stmt\Block($statements ?? []),
@@ -240,9 +236,7 @@ final class ConditionalExpressionWrappingFixer extends AbstractWrappingFixer
 
         if ($owner instanceof Node\Stmt\Return_
             || $owner instanceof Node\Stmt\Expression
-            || (($owner instanceof Node\Expr\Assign || $owner instanceof Node\Expr\AssignOp) && $owner->getAttribute(
-                'parent',
-            ) instanceof Node\Stmt\Expression)
+            || (($owner instanceof Node\Expr\Assign || $owner instanceof Node\Expr\AssignOp) && $owner->getAttribute('parent') instanceof Node\Stmt\Expression)
         ) {
             $start = $positions['starts'][$owner->getStartFilePos()];
         }

@@ -16,7 +16,7 @@ use Symfony\Component\Filesystem\Filesystem;
 
 final class PresetTest extends TestCase
 {
-    public function testTheRulesEntrypointPreservesEveryNativePintRuleAndOption(): void
+    public function testTheRulesEntrypointPreservesNativeRulesWithTheDocumentedClosureOverride(): void
     {
         $expected = $this->expectedNativeRules();
         $actual = \array_filter($this->entrypointRules(), static fn (string $name): bool => ! \str_starts_with($name, 'Noldors/'), \ARRAY_FILTER_USE_KEY);
@@ -26,7 +26,7 @@ final class PresetTest extends TestCase
         $this->assertSame($expected, $actual);
     }
 
-    public function testTheConvenienceApiPreservesEveryNativePintRuleAndOption(): void
+    public function testTheConvenienceApiPreservesNativeRulesWithTheDocumentedClosureOverride(): void
     {
         $actual = \array_filter(Config::rules(), static fn (string $name): bool => ! \str_starts_with($name, 'Noldors/'), \ARRAY_FILTER_USE_KEY);
         $expected = $this->expectedNativeRules();
@@ -35,21 +35,23 @@ final class PresetTest extends TestCase
         $this->assertSame($expected, $actual);
     }
 
-    public function testTheLayoutRulesAreTheOnlyAdditions(): void
+    public function testTheCustomRulesAreTheOnlyAdditions(): void
     {
         $rules = $this->entrypointRules();
         $custom = \array_filter($rules, static fn (string $name): bool => \str_starts_with($name, 'Noldors/'), \ARRAY_FILTER_USE_KEY);
 
-        $this->assertCount(274, $rules);
+        $this->assertCount(275, $rules);
         $this->assertSame(
             [
-                'Noldors/fluent_chain_wrapping' => ['max_line_length' => 100],
+                'Noldors/fluent_chain_wrapping' => ['max_line_length' => 120],
                 'Noldors/method_call_wrapping' => [
-                    'max_line_length' => 100,
+                    'max_line_length' => 120,
                     'max_single_line_arguments' => 3,
+                    'single_argument_max_length' => 40,
                 ],
-                'Noldors/array_wrapping' => ['max_line_length' => 100],
-                'Noldors/conditional_expression_wrapping' => ['max_line_length' => 100],
+                'Noldors/array_wrapping' => ['max_line_length' => 120],
+                'Noldors/conditional_expression_wrapping' => ['max_line_length' => 120],
+                'Noldors/function_composition_to_pipe' => ['max_line_length' => 120],
             ],
             $custom,
         );
@@ -69,6 +71,7 @@ final class PresetTest extends TestCase
                 'Noldors/method_call_wrapping',
                 'Noldors/array_wrapping',
                 'Noldors/conditional_expression_wrapping',
+                'Noldors/function_composition_to_pipe',
             ],
             \array_map(static fn ($fixer): string => $fixer->getName(), $config->getCustomFixers()),
         );
@@ -156,7 +159,9 @@ final class PresetTest extends TestCase
     {
         $config = Config::create(__DIR__);
         $finder = Finder::create()->in(__DIR__)->notPath('Fixtures');
-        $config->setRules([...Config::rules(), 'strict_param' => false]);
+        $config->setRules(
+            [...Config::rules(), 'strict_param' => false],
+        );
         $config->setFinder($finder);
 
         $this->assertFalse($config->getRules()['strict_param']);
@@ -180,16 +185,21 @@ final class PresetTest extends TestCase
     private function expectedNativeRules(): array
     {
         /** @var array{preset: string, rules: array<string, array<string, mixed>|bool>} $explicit */
-        $explicit = \json_decode($this->fixtureContents(
-            'pint.json',
-        ), true, flags: \JSON_THROW_ON_ERROR);
+        $explicit = \json_decode($this->fixtureContents('pint.json'), true, flags: \JSON_THROW_ON_ERROR);
 
         /** @var array<string, array<string, mixed>|bool> $base */
-        $base = \json_decode($this->fixtureContents(
-            'laravel-preset.json',
-        ), true, flags: \JSON_THROW_ON_ERROR);
+        $base = \json_decode($this->fixtureContents('laravel-preset.json'), true, flags: \JSON_THROW_ON_ERROR);
 
-        return \array_merge($base, $explicit['rules']);
+        $expected = \array_merge($base, $explicit['rules']);
+        $options = $expected['braces_position'];
+        $this->assertIsArray($options);
+        $this->assertTrue(
+            $options['allow_single_line_anonymous_functions'],
+        );
+        $options['allow_single_line_anonymous_functions'] = false;
+        $expected['braces_position'] = $options;
+
+        return $expected;
     }
 
     private function fixtureContents(string $name): string

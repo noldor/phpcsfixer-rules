@@ -32,9 +32,10 @@ abstract class FixerTestCase extends TestCase
     {
         $tokens = \array_filter(\token_get_all($code, \TOKEN_PARSE), static fn (array|string $token): bool => ! \is_array($token) || \T_WHITESPACE !== $token[0]);
 
-        return \array_values(\array_map(static fn (array|string $token): array|string => \is_array($token) ? [
+        return \array_map(static fn (array|string $token): array|string => \is_array($token) ? [
             $token[0],
             $token[1],
-        ] : $token, $tokens));
+        ] : $token, $tokens)
+            |> \array_values(...);
     }
 }

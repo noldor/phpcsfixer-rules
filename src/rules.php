@@ -90,7 +90,7 @@ return [
         'min_line_breaks' => 2,
     ],
     'braces_position' => [
-        'allow_single_line_anonymous_functions' => true,
+        'allow_single_line_anonymous_functions' => false,
         'allow_single_line_empty_anonymous_classes' => true,
         'anonymous_classes_opening_brace' => 'same_line',
         'anonymous_functions_opening_brace' => 'same_line',
@@ -747,16 +747,20 @@ return [
     'void_return' => true,
     'yield_from_array_to_yields' => false,
     'Noldors/fluent_chain_wrapping' => [
-        'max_line_length' => 100,
+        'max_line_length' => 120,
     ],
     'Noldors/method_call_wrapping' => [
-        'max_line_length' => 100,
+        'max_line_length' => 120,
         'max_single_line_arguments' => 3,
+        'single_argument_max_length' => 40,
     ],
     'Noldors/array_wrapping' => [
-        'max_line_length' => 100,
+        'max_line_length' => 120,
     ],
     'Noldors/conditional_expression_wrapping' => [
-        'max_line_length' => 100,
+        'max_line_length' => 120,
+    ],
+    'Noldors/function_composition_to_pipe' => [
+        'max_line_length' => 120,
     ],
 ];

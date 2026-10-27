@@ -4,7 +4,7 @@
 after the first starts on its own line. The first call stays with its receiver.
 
 ```php
-// Before, when the line exceeds the configured width:
+// Before, when the chain exceeds the configured width:
 $query->where('state', $state)->orderBy('created_at')->first();
 
 // After:
@@ -16,53 +16,53 @@ $query->where('state', $state)
 ## Configuration
 
 ```php
-'Noldors/fluent_chain_wrapping' => ['max_line_length' => 100],
+'Noldors/fluent_chain_wrapping' => ['max_line_length' => 120],
 ```
 
-`max_line_length` must be a positive integer and defaults to 100. Width counts
-Unicode codepoints; tabs advance to four-column tab stops. The trigger is the
-physical source line, including its surrounding code. A line exactly at the
-limit stays inline. Independent chains sharing an overlong physical line can
-therefore both be expanded.
+`max_line_length` must be a positive integer and defaults to 120. Width counts
+Unicode code points, with tabs advancing to four-column tab stops. A chain
+exactly at the limit stays inline. Each chain is measured from its own receiver,
+including indentation, rather than from preceding enclosing expressions. A
+short `$entry['request']->getUri()->getHost()` therefore remains together inside
+a long callback or outer function call.
 
-Line breaks inside array literals and closure bodies do not make a short chain
-multiline. `User::factory()->create([...])` keeps its header together, and a
-continuation after a closure can remain on the closing line:
+Line breaks inside argument lists, array literals and closure bodies do not
+by themselves split a chain. `User::factory()->create([...])` keeps its header
+together. Short continuations also join a line containing only closing
+delimiters, even when the continuation was previously on its own line:
 
 ```php
 Artisan::command('inspire', function (): void {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+$second = $this->withHeader(
+    'X-Correlation-ID',
+    '00000000-0000-0000-0000-000000000000',
+)->getJson('/context-boundary')->assertOk();
 ```
 
-Existing object and nullsafe continuation breaks keep a chain multiline, and
-any remaining successive calls on the same line are separated. In the complete
-preset, native `no_space_around_double_colon` can remove the only multiline
-evidence from a short chain when its continuation breaks are all before `::`.
-Such a chain becomes inline if its resulting line fits the limit. Long static
-chains still wrap. A single call or property-only access does not become a
-chain merely because its line is long.
+Joining stops at a comment or when the resulting closing line would exceed the
+configured width. Following short calls can share that line. Multiline
+arguments are reindented with a moved call.
+
+Other existing object and nullsafe continuation breaks keep a chain multiline;
+remaining successive calls are then separated. In the complete preset, native
+`no_space_around_double_colon` can remove the only multiline evidence from a
+short chain when all continuation breaks precede `::`. It becomes inline if it
+fits the limit. Long static chains still wrap.
 
 ## Scope and preservation
 
-- Method, nullsafe and static call links are supported, including a static
-  factory followed by instance calls. Property accesses between method calls do
-  not count as calls, but retain the same receiver path. Dynamic method names
-  such as `$object->{$method}()` and `Handler::{$method}()` are supported.
-- Nested chains inside arguments are analysed independently. Their operators
-  are not treated as successive calls of the surrounding chain.
-- Free functions and constructors are not counted as fluent method links.
-  First-class callable references are also outside this rule's call count.
-- Explicitly regrouped receivers and offset accesses form boundaries for chain
-  recognition. The rule does not infer that a path through these expressions
-  remains fluent.
-- Formatting changes only whitespace. Arguments, call order, `?->` behavior,
-  comments, string contents and member names are preserved. An inline comment
-  before a continued call stays before that call. Chains inside complex string
-  interpolation retain their value and surrounding literal text.
-- When a continuation moves, its multiline argument whitespace is reindented
-  with it in the same pass.
+Method, nullsafe and static links are supported, including variable and braced
+method names. Property accesses between calls retain the same receiver path
+but do not count as calls. Nested chains are analysed independently. Free
+functions, constructors and first-class callable references do not count as
+method links. A single call or property-only access does not become a chain
+merely because its surrounding line is long.
 
-The rule does not split an individually long string or argument expression.
-Use the shared rule set's argument wrapping and native indentation rules for
-the surrounding layout.
+Explicitly regrouped receivers and offset accesses form chain-recognition
+boundaries. The rule changes only whitespace, preserving arguments, call order,
+`?->` behavior, comments, string contents and member names. Complex string
+interpolation retains its value and surrounding text. It does not split an
+individually long argument or impose a universal hard line limit.

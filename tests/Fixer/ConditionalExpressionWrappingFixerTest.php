@@ -12,6 +12,12 @@ use Noldors\PhpCsFixer\Fixer\ConditionalExpressionWrappingFixer;
 
 final class ConditionalExpressionWrappingFixerTest extends FixerTestCase
 {
+    public function testDefaultWidthKeepsTheShortHostConditionInline(): void
+    {
+        $input = "<?php\n                if (\\is_string(\$correlationId) && \\in_array(\$request->getUri()->getHost(), \$hosts, true)) {}\n";
+        $this->assertFixerOutput(new ConditionalExpressionWrappingFixer(), $input, $input);
+    }
+
     #[DataProvider('expressions')]
     public function testWrapsConditionalExpressions(string $input, string $expected): void
     {
@@ -34,7 +40,7 @@ final class ConditionalExpressionWrappingFixerTest extends FixerTestCase
             $nested,
         ];
 
-        $long = \str_repeat('x', 85);
+        $long = \str_repeat('x', 105);
 
         yield 'top-level same-line statements are independent siblings' => [
             "<?php\n\$first = \$a ? check('{$long}') : \$b; \$second = \$c ? check('{$long}') : \$d;\n",
@@ -243,7 +249,7 @@ final class ConditionalExpressionWrappingFixerTest extends FixerTestCase
     {
         $prefix = "if (\$first && check('";
         $suffix = "')) {";
-        $value = \str_repeat('я', 100 - \mb_strlen($prefix . $suffix));
+        $value = \str_repeat('я', 120 - \mb_strlen($prefix . $suffix));
         $input = "<?php\n{$prefix}{$value}{$suffix}\n}\n";
 
         $this->assertFixerOutput(new ConditionalExpressionWrappingFixer(), $input, $input);

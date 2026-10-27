@@ -12,14 +12,14 @@ final class FluentChainWrappingFixerTest extends FixerTestCase
 {
     public function testKeepsAChainAtTheConfiguredWidth(): void
     {
-        $input = $this->chainAtWidth(100);
+        $input = $this->chainAtWidth(120);
 
         $this->assertFixerOutput(new FluentChainWrappingFixer(), $input, $input);
     }
 
     public function testWrapsAChainOneColumnOverTheConfiguredWidth(): void
     {
-        $input = $this->chainAtWidth(101);
+        $input = $this->chainAtWidth(121);
         $expected = \str_replace('->second()->third();', "\n    ->second()\n    ->third();", $input);
 
         $this->assertFixerOutput(new FluentChainWrappingFixer(), $input, $expected);
@@ -39,17 +39,17 @@ final class FluentChainWrappingFixerTest extends FixerTestCase
 
     public function testDoesNotCombineUnrelatedNestedCallsIntoAChain(): void
     {
-        $input = "<?php\n\$outer->map(\$inner->value('" . \str_repeat('x', 90) . "'));\n";
+        $input = "<?php\n\$outer->map(\$inner->value('" . \str_repeat('x', 110) . "'));\n";
 
         $this->assertFixerOutput(new FluentChainWrappingFixer(), $input, $input);
     }
 
     public function testHandlesNestedChainsIndependently(): void
     {
-        $input = "<?php\n\$outer->map(\n    \$inner->first('" . \str_repeat('x', 90) . "')->second()\n)->done();\n";
+        $input = "<?php\n\$outer->map(\n    \$inner->first('" . \str_repeat('x', 110) . "')->second()\n)->done();\n";
         $expected = \str_replace(
-            ['->second()', ')->done();'],
-            ["\n        ->second()", ")\n    ->done();"],
+            ['->second()'],
+            ["\n        ->second()"],
             $input,
         );
 
@@ -66,7 +66,7 @@ final class FluentChainWrappingFixerTest extends FixerTestCase
 
     public function testPreservesPropertiesBetweenActualCallLinks(): void
     {
-        $input = "<?php\n\$query->first('" . \str_repeat('x', 80) . "')->result->second();\n";
+        $input = "<?php\n\$query->first('" . \str_repeat('x', 100) . "')->result->second();\n";
         $expected = \str_replace('->second()', "\n    ->second()", $input);
 
         $this->assertFixerOutput(new FluentChainWrappingFixer(), $input, $expected);
@@ -74,7 +74,7 @@ final class FluentChainWrappingFixerTest extends FixerTestCase
 
     public function testKeepsInlineAndLineCommentsInPlace(): void
     {
-        $input = "<?php\n\$query->first('" . \str_repeat('x', 80) . "') /* why */ ->second() // next step\n    ->third();\n";
+        $input = "<?php\n\$query->first('" . \str_repeat('x', 100) . "') /* why */ ->second() // next step\n    ->third();\n";
         $expected = \str_replace(' /* why */ ->second()', " /* why */\n    ->second()", $input);
 
         $this->assertFixerOutput(new FluentChainWrappingFixer(), $input, $expected);
@@ -97,7 +97,7 @@ final class FluentChainWrappingFixerTest extends FixerTestCase
 
     public function testCountsUnicodeCharactersInsteadOfBytes(): void
     {
-        $input = $this->chainAtWidth(100, 'я');
+        $input = $this->chainAtWidth(120, 'я');
 
         $this->assertFixerOutput(new FluentChainWrappingFixer(), $input, $input);
     }
@@ -106,7 +106,7 @@ final class FluentChainWrappingFixerTest extends FixerTestCase
     {
         $fixer = new FluentChainWrappingFixer();
         $fixer->setWhitespacesConfig(new WhitespacesFixerConfig("\t", "\r\n"));
-        $input = "<?php\r\n\t\$query->first('" . \str_repeat('x', 80) . "')->second()->third();\r\n";
+        $input = "<?php\r\n\t\$query->first('" . \str_repeat('x', 100) . "')->second()->third();\r\n";
         $expected = \str_replace('->second()->third();', "\r\n\t\t->second()\r\n\t\t->third();", $input);
 
         $this->assertFixerOutput($fixer, $input, $expected);
@@ -116,11 +116,11 @@ final class FluentChainWrappingFixerTest extends FixerTestCase
     {
         $fixer = new FluentChainWrappingFixer();
         $fixer->setWhitespacesConfig(new WhitespacesFixerConfig("\t", "\n"));
-        $input = \str_replace("<?php\n", "<?php\n\t", $this->chainAtWidth(96));
+        $input = \str_replace("<?php\n", "<?php\n\t", $this->chainAtWidth(116));
 
         $this->assertFixerOutput($fixer, $input, $input);
 
-        $input = \str_replace("<?php\n", "<?php\n\t", $this->chainAtWidth(97));
+        $input = \str_replace("<?php\n", "<?php\n\t", $this->chainAtWidth(117));
         $expected = \str_replace('->second()->third();', "\n\t\t->second()\n\t\t->third();", $input);
 
         $this->assertFixerOutput($fixer, $input, $expected);
@@ -128,15 +128,15 @@ final class FluentChainWrappingFixerTest extends FixerTestCase
 
     public function testDoesNotCountFirstClassCallableReferencesAsMethodCalls(): void
     {
-        $input = "<?php\n\$object->method(...)->__invoke('" . \str_repeat('x', 90) . "');\n";
+        $input = "<?php\n\$object->method(...)->__invoke('" . \str_repeat('x', 110) . "');\n";
 
         $this->assertFixerOutput(new FluentChainWrappingFixer(), $input, $input);
     }
 
     public function testDoesNotCountFreeFunctionsOrConstructorsAsMethodCalls(): void
     {
-        $input = "<?php\nfactory('" . \str_repeat('x', 90) . "')->method();\n";
-        $input .= "(new Builder('" . \str_repeat('x', 90) . "'))->method();\n";
+        $input = "<?php\nfactory('" . \str_repeat('x', 110) . "')->method();\n";
+        $input .= "(new Builder('" . \str_repeat('x', 110) . "'))->method();\n";
 
         $this->assertFixerOutput(new FluentChainWrappingFixer(), $input, $input);
     }
@@ -165,7 +165,7 @@ final class FluentChainWrappingFixerTest extends FixerTestCase
 
     public function testSupportsReservedStaticMethodNames(): void
     {
-        $input = "<?php\nHandler::match('" . \str_repeat('x', 90) . "')->next();\n";
+        $input = "<?php\nHandler::match('" . \str_repeat('x', 110) . "')->next();\n";
         $expected = \str_replace('->next()', "\n    ->next()", $input);
 
         $this->assertFixerOutput(new FluentChainWrappingFixer(), $input, $expected);
@@ -173,14 +173,14 @@ final class FluentChainWrappingFixerTest extends FixerTestCase
 
     public function testDoesNotCountAConstructorUsingAPropertyAsAMethodLink(): void
     {
-        $input = "<?php\nnew \$object->className('" . \str_repeat('x', 90) . "')->next();\n";
+        $input = "<?php\nnew \$object->className('" . \str_repeat('x', 110) . "')->next();\n";
 
         $this->assertFixerOutput(new FluentChainWrappingFixer(), $input, $input);
     }
 
     public function testWrapsRealMethodsAfterAConstructorUsingAProperty(): void
     {
-        $input = "<?php\nnew \$object->className('" . \str_repeat('x', 90) . "')->next()->last();\n";
+        $input = "<?php\nnew \$object->className('" . \str_repeat('x', 110) . "')->next()->last();\n";
         $expected = \str_replace('->last()', "\n    ->last()", $input);
 
         $this->assertFixerOutput(new FluentChainWrappingFixer(), $input, $expected);
@@ -189,7 +189,7 @@ final class FluentChainWrappingFixerTest extends FixerTestCase
     public function testSupportsBracedDynamicMethodNames(): void
     {
         foreach (['Handler::{$method}', '$object->{$method}', '$object?->{$method}'] as $receiver) {
-            $input = "<?php\n" . $receiver . "('" . \str_repeat('x', 90) . "')->next();\n";
+            $input = "<?php\n" . $receiver . "('" . \str_repeat('x', 110) . "')->next();\n";
             $expected = \str_replace('->next()', "\n    ->next()", $input);
 
             $this->assertFixerOutput(new FluentChainWrappingFixer(), $input, $expected);
@@ -198,7 +198,7 @@ final class FluentChainWrappingFixerTest extends FixerTestCase
 
     public function testPreservesInterpolatedStringContents(): void
     {
-        $input = "<?php return \"prefix{\$object->first('" . \str_repeat('x', 90) . "')->second()}suffix\";";
+        $input = "<?php return \"prefix{\$object->first('" . \str_repeat('x', 110) . "')->second()}suffix\";";
         $expected = \str_replace('->second()', "\n    ->second()", $input);
 
         $this->assertFixerOutput(new FluentChainWrappingFixer(), $input, $expected);
@@ -216,6 +216,41 @@ final class FluentChainWrappingFixerTest extends FixerTestCase
         };
 
         $this->assertSame('prefixOKsuffix', eval(\mb_substr($expected, 5)));
+    }
+
+    public function testAShortNestedChainIgnoresTheOuterExpressionPrefix(): void
+    {
+        $input = "<?php\n\$allowed = \\array_filter(\$history, static fn (\$entry): bool => 'allowed.example.test' === \$entry['request']->getUri()->getHost());\n";
+
+        $this->assertFixerOutput(new FluentChainWrappingFixer(), $input, $input);
+    }
+
+    public function testClosingContinuationsJoinAndReindentTheirArguments(): void
+    {
+        $input = "<?php\n\$this->withHeader(\n    'header',\n    'value',\n)\n    ->getJson(\n        '/path'\n    )\n    ->assertOk();\n";
+        $expected = "<?php\n\$this->withHeader(\n    'header',\n    'value',\n)->getJson(\n    '/path'\n)->assertOk();\n";
+
+        $this->assertFixerOutput(new FluentChainWrappingFixer(), $input, $expected);
+    }
+
+    public function testClosingContinuationsRespectComments(): void
+    {
+        foreach (['/* keep */', '// keep'] as $comment) {
+            $input = "<?php\n\$o->run(\n    1\n) {$comment}\n    ->next();\n";
+
+            $this->assertFixerOutput(new FluentChainWrappingFixer(), $input, $input);
+        }
+    }
+
+    public function testClosingContinuationsRespectTheJoinedLineWidth(): void
+    {
+        foreach ([120, 121] as $width) {
+            $call = "->next('" . \str_repeat('x', $width - \mb_strlen(")->next('');")) . "');";
+            $input = "<?php\n\$o->run(\n    1\n)\n    {$call}\n";
+            $expected = 120 === $width ? \str_replace(")\n    ->", ')->', $input) : $input;
+
+            $this->assertFixerOutput(new FluentChainWrappingFixer(), $input, $expected);
+        }
     }
 
     private function chainAtWidth(int $width, string $character = 'x'): string
