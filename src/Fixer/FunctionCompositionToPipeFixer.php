@@ -7,6 +7,7 @@ namespace Noldors\PhpCsFixer\Fixer;
 use SplFileInfo;
 use PhpParser\NodeFinder;
 use PhpParser\NodeTraverser;
+use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 use PhpParser\Node\Expr\FuncCall;
 use PhpParser\PrettyPrinter\Standard;
@@ -55,7 +56,7 @@ final class FunctionCompositionToPipeFixer extends AbstractWrappingFixer
     protected function createConfigurationDefinition(): FixerConfigurationResolverInterface
     {
         return new FixerConfigurationResolver([
-            new FixerOptionBuilder('max_line_length', 'Maximum first-stage width before wrapping its arguments.')
+            new FixerOptionBuilder('max_line_length', 'Maximum first-stage and joined closing-line width.')
                 ->setAllowedTypes(['int'])
                 ->setAllowedValues(
                     [static fn (mixed $value): bool => \is_int($value) && 0 < $value],
@@ -65,6 +66,13 @@ final class FunctionCompositionToPipeFixer extends AbstractWrappingFixer
 
     protected function applyFix(SplFileInfo $file, Tokens $tokens): void
     {
+        // Keep token positions stable while moving nested pipe stages later.
+        for ($index = \count($tokens) - 1; 0 < $index; --$index) {
+            if ($tokens[$index]->isGivenKind(\T_PIPE) && ! $tokens[$index - 1]->isWhitespace()) {
+                $tokens->insertAt($index, new Token([\T_WHITESPACE, ' ']));
+            }
+        }
+
         $source = new Source($tokens);
         $statements = new NodeTraverser(new CloningVisitor())->traverse($source->statements);
         $visitor = new FunctionCompositionToPipeVisitor($source);
@@ -90,63 +98,154 @@ final class FunctionCompositionToPipeFixer extends AbstractWrappingFixer
 
     private function formatPipelines(Tokens $tokens, Source $source): void
     {
-        $statements = new NodeTraverser(new ParentConnectingVisitor())->traverse($source->statements);
-        $pipes = new NodeFinder()->findInstanceOf($statements, Pipe::class);
-        $breaks = [];
-        $calls = [];
+        // Whitespace edits preserve significant-token ordinals across insertions.
+        $positions = $this->significantPositions($tokens);
+        $ordinals = \array_flip($positions);
+        $events = $this->layoutEvents($tokens, $source, $ordinals);
+        \ksort($events);
 
-        foreach ($pipes as $pipe) {
-            $owner = $pipe->getAttribute('parent');
+        foreach ($events as $ordinal => $event) {
+            $index = $positions[$ordinal];
+            $start = $positions[$event['start']];
+            $end = $positions[$event['end']];
+            $indent = Layout::indentAt($tokens, $positions[$event['anchor']]);
 
-            if ($owner instanceof Pipe && $owner->left === $pipe) {
+            if ($event['arguments']) {
+                if (Layout::lineWidth($tokens, $start, $end) > $this->configuration['max_line_length']) {
+                    Layout::wrapDelimitedList(
+                        $tokens,
+                        $index,
+                        $end,
+                        DelimitedList::commas($tokens, $index, $end),
+                        $indent,
+                        $this->whitespacesConfig->getIndent(),
+                        $this->whitespacesConfig->getLineEnding(),
+                    );
+                    $positions = $this->significantPositions($tokens);
+                }
+
                 continue;
             }
 
-            $indent = Layout::indentAt($tokens, $source->start($pipe));
+            $this->movePipe(
+                $tokens,
+                $index,
+                $end,
+                $indent . $this->whitespacesConfig->getIndent(),
+            );
+        }
+    }
+
+    /**
+     * @param array<int, int> $ordinals
+     *
+     * @return array<int, array{arguments: bool, start: int, end: int, anchor: int}>
+     */
+    private function layoutEvents(Tokens $tokens, Source $source, array $ordinals): array
+    {
+        $events = [];
+
+        foreach ($this->rootPipes($source) as $pipe) {
+            $anchor = $ordinals[$source->start($pipe)];
             $stage = $pipe;
 
             while ($stage instanceof Pipe) {
                 $operator = $tokens->getNextTokenOfKind($source->end($stage->left), [[\T_PIPE]]);
                 \assert(null !== $operator);
-                $breaks[$operator] = $indent . $this->whitespacesConfig->getIndent();
+                $events[$ordinals[$operator]] = [
+                    'arguments' => false,
+                    'start' => $anchor,
+                    'end' => $ordinals[$source->end($stage->right)],
+                    'anchor' => $anchor,
+                ];
                 $stage = $stage->left;
             }
 
-            if ($stage instanceof FuncCall
-                && 1 < \count($stage->args)
-                && Layout::lineWidth($tokens, $source->start($stage), $source->end($stage)) > $this->configuration['max_line_length']
-            ) {
+            if ($stage instanceof FuncCall && 1 < \count($stage->args)) {
                 $open = $tokens->getNextTokenOfKind($source->end($stage->name), ['(']);
                 \assert(null !== $open);
-                $calls[$open] = $indent;
+                $close = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_PARENTHESIS, $open);
+                $events[$ordinals[$open]] = [
+                    'arguments' => true,
+                    'start' => $ordinals[$source->start($stage)],
+                    'end' => $ordinals[$close],
+                    'anchor' => $anchor,
+                ];
             }
         }
 
-        $positions = \array_unique([...\array_keys($breaks), ...\array_keys($calls)]);
-        \rsort($positions);
+        return $events;
+    }
 
-        foreach ($positions as $position) {
-            if (isset($breaks[$position])) {
-                Layout::breakBefore(
-                    $tokens,
-                    $position,
-                    $breaks[$position],
-                    $this->whitespacesConfig->getLineEnding(),
-                );
+    /**
+     * @return array<int, int>
+     */
+    private function significantPositions(Tokens $tokens): array
+    {
+        $positions = [];
 
-                continue;
+        foreach ($tokens as $index => $token) {
+            if (! $tokens->isEmptyAt($index) && ! $token->isWhitespace()) {
+                $positions[] = $index;
             }
+        }
 
-            $close = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_PARENTHESIS, $position);
-            Layout::wrapDelimitedList(
+        return $positions;
+    }
+
+    /**
+     * @return list<Pipe>
+     */
+    private function rootPipes(Source $source): array
+    {
+        $statements = new NodeTraverser(new ParentConnectingVisitor())->traverse($source->statements);
+        $roots = [];
+
+        foreach (new NodeFinder()->findInstanceOf($statements, Pipe::class) as $pipe) {
+            $owner = $pipe->getAttribute('parent');
+
+            if (! $owner instanceof Pipe || $owner->left !== $pipe) {
+                $roots[] = $pipe;
+            }
+        }
+
+        return $roots;
+    }
+
+    private function movePipe(Tokens $tokens, int $operator, int $end, string $indent): void
+    {
+        $previous = $tokens->getPrevMeaningfulToken($operator);
+        \assert(null !== $previous);
+        $nextPipe = $tokens->getNextTokenOfKind($operator, [[\T_PIPE]]);
+        $lineEnd = null === $nextPipe ? null : $tokens->getPrevNonWhitespace($nextPipe);
+        $join = Layout::onlyClosingLine($tokens, $previous)
+            && $tokens->getPrevNonWhitespace($operator) === $previous
+            && Layout::joinedLineWidth(
                 $tokens,
-                $position,
-                $close,
-                DelimitedList::commas($tokens, $position, $close),
-                $calls[$position],
-                $this->whitespacesConfig->getIndent(),
-                $this->whitespacesConfig->getLineEnding(),
-            );
+                $operator,
+                $lineEnd,
+                ' ',
+            ) <= $this->configuration['max_line_length'];
+        $newIndent = $join ? Layout::indentAt($tokens, $previous) : $indent;
+        Layout::reindent(
+            $tokens,
+            $operator,
+            $end + 1,
+            Layout::indentAt($tokens, $operator),
+            $newIndent,
+        );
+
+        if ($join) {
+            $tokens[$operator - 1] = new Token([\T_WHITESPACE, ' ']);
+
+            return;
         }
+
+        Layout::breakBefore(
+            $tokens,
+            $operator,
+            $indent,
+            $this->whitespacesConfig->getLineEnding(),
+        );
     }
 }

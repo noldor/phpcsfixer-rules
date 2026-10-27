@@ -33,15 +33,15 @@ final class Layout
         return 1 === \preg_match('/^[\\t ]*[\\)\\]\\}]+$/D', $prefix);
     }
 
-    public static function joinedLineWidth(Tokens $tokens, int $index, int $end): int
+    public static function joinedLineWidth(Tokens $tokens, int $index, int|null $end, string $separator = ''): int
     {
         $previous = $tokens->getPrevNonWhitespace($index);
         \assert(null !== $previous);
         $prefix = self::linePrefix($tokens, $previous) . $tokens[$previous]->getContent();
-        $line = \preg_split('/\\r\\n|\\n|\\r/', $tokens->generatePartialCode($index, $end), 2);
-        \assert(false !== $line);
 
-        return self::width($prefix . $line[0]);
+        return self::width(
+            $prefix . $separator . \mb_rtrim(self::lineSuffix($tokens, $index, $end), "\r"),
+        );
     }
 
     public static function joinBefore(Tokens $tokens, int $index): void

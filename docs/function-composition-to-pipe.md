@@ -12,7 +12,20 @@ $allowed = \array_filter($history, $predicate)
     |> \array_values(...);
 ```
 
-Each `|>` starts on a new line with one continuation indent. This also formats
+Each `|>` starts on a new line with one continuation indent, except when a
+short stage can share a line containing only closing delimiters. Such a stage
+uses one space after the closing delimiters, for example:
+
+```php
+$outside = \array_filter(
+    $history,
+    static fn ($entry): bool => 'outside.example.test' === $entry['request']->getUri()->getHost(),
+) |> \array_values(...);
+```
+
+Joining requires the resulting closing line to fit `max_line_length` and have
+no intervening comment. This exception applies at any stage in the pipeline.
+Stages following ordinary call content retain their own lines. This also formats
 existing pipelines, including pipelines with user-defined callables. Multiple
 unary wrappers become successive stages in their original invocation order.
 The first call retains its arguments and callback; no new closure, capture or
@@ -53,9 +66,16 @@ syntax rewrite.
 
 `max_line_length` must be a positive integer. When the pipeline's first stage is
 a long function call with multiple arguments, those arguments get separate
-lines. The pipe stages always start on separate lines, regardless of width.
+lines. Short stages may join closing-only lines up to the same width; other
+stages start on separate lines regardless of width.
 Unicode characters count once and tabs advance to four-column tab stops.
 Configured indentation and line endings are respected.
+
+Nested arrow-function headers can require another explicit formatting run when
+wrapping an inner call shortens the header that determines an outer pipe's
+placement. Repeat until the normal dry-run check is clean; the rule does not
+replay itself or other fixers internally. The direct closing-line examples above
+settle in one run.
 
 Requires PHP 8.5, already required by the package. See PHP's
 [functional operators](https://www.php.net/manual/en/language.operators.functional.php)

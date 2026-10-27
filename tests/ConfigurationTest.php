@@ -54,7 +54,14 @@ final class ConfigurationTest extends TestCase
 
         yield 'compact: nested native composition becomes a pipe with its own argument layout' => [
             "<?php\n\ndeclare(strict_types = 1);\n\$allowed = \\array_values(\\array_filter(\$history, static fn (\$entry): bool => 'allowed.example.test' === \$entry['request']->getUri()->getHost()));\n",
-            "<?php\n\ndeclare(strict_types = 1);\n\$allowed = \\array_filter(\n    \$history,\n    static fn (\$entry): bool => 'allowed.example.test' === \$entry['request']->getUri()->getHost(),\n)\n    |> \\array_values(...);\n",
+            "<?php\n\ndeclare(strict_types = 1);\n\$allowed = \\array_filter(\n    \$history,\n    static fn (\$entry): bool => 'allowed.example.test' === \$entry['request']->getUri()->getHost(),\n) |> \\array_values(...);\n",
+        ];
+
+        $name = \str_repeat('x', 104);
+
+        yield 'compact: nested pipes use the final enclosing indentation' => [
+            "<?php\n\ndeclare(strict_types = 1);\n\$result = \\produce(\n    \$items,\n)\n    |> (static function (array \$items): array {\n        \$items = \\normalise(\$items);\n\n        return \\produce(\n            \$items,\n        )\n            |> \\{$name}(...);\n    });\n",
+            "<?php\n\ndeclare(strict_types = 1);\n\$result = \\produce(\n    \$items,\n) |> (static function (array \$items): array {\n    \$items = \\normalise(\$items);\n\n    return \\produce(\n        \$items,\n    ) |> \\{$name}(...);\n});\n",
         ];
 
         $long = \str_repeat('x', 105);

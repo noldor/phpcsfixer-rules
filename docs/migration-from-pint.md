@@ -56,7 +56,11 @@ whitespace, as did the source Pint profile.
 The custom rules run once in the native fixer pipeline. Native indentation or
 spacing may make a line exceed the width limit after its wrapping rule has run;
 wrapping a surrounding chain may also change a nested call's indentation. These
-cases can require another `php-cs-fixer fix` invocation. Repeat formatting until
+cases can require another `php-cs-fixer fix` invocation. A later native
+closure-to-arrow conversion can also remove a closing-only line after the pipe
+rule has run, changing where the next pipe belongs. Wrapping a nested call in
+an arrow-function header can likewise make an outer pipe eligible to join on
+the next invocation. Repeat formatting until
 `php-cs-fixer fix --dry-run --diff` reports no changes before committing.
 
 The package does not replay native or third-party rules. File annotations,
@@ -125,8 +129,10 @@ only continuation breaks precede `::`; long static chains still wrap.
 
 Known native unary function composition becomes a PHP 8.5 pipeline, for example
 `array_values(array_filter($values))` becomes `array_filter($values)` followed
-by `|> array_values(...)`. Every pipe stage starts on a new line, including
-existing pipe expressions. See the [pipe rule](function-composition-to-pipe.md)
+by `|> array_values(...)`. Pipe stages start on new lines, except for short
+stages that can join closing-only lines within 120 columns, such as
+`) |> array_values(...)`. Comments prevent joining. Existing pipe expressions
+follow the same layout. See the [pipe rule](function-composition-to-pipe.md)
 for the supported functions and conservative exclusions, and each layout
 rule's documentation for its boundaries.
 
