@@ -14,13 +14,17 @@ entries not explicitly repeated by that configuration:
 - `general_phpdoc_tag_rename`
 - `no_multiple_statements_per_line`
 
-Four custom multiline fixers are appended, for 274 entries in total. All 270 native entries remain unchanged, including
-27 disabled rules. Nested options and their ordering remain intact.
+Four custom layout fixers and one function-to-pipe fixer are appended, for 275
+entries in total. All 270 native rule keys remain, including 27 disabled rules.
+One explicit option override sets
+`braces_position.allow_single_line_anonymous_functions` to `false`, so closure
+bodies expand while short calls inside them remain inline. Every other native
+option and its ordering remain unchanged.
 
 The source checkout retains the [explicit configuration snapshot](../tests/Fixtures/pint.json)
 and [Laravel preset snapshot](../tests/Fixtures/laravel-preset.json). Parity tests
 compare native keys and full values independently against both `src/rules.php`
-and `Config::rules()`. They also verify the four additions and that the complete
+and `Config::rules()`. They apply only that documented closure override and verify the five additions and that the complete
 configuration can be loaded by PHP-CS-Fixer.
 The snapshots are development fixtures and are excluded from dist archives.
 
@@ -88,8 +92,9 @@ Deliberate project rule exceptions can also be applied through the native API:
 $config->setRules([
     ...Config::rules(),
     'Noldors/method_call_wrapping' => [
-        'max_line_length' => 100,
+        'max_line_length' => 120,
         'max_single_line_arguments' => 3,
+        'single_argument_max_length' => 40,
     ],
 ]);
 ```
@@ -102,17 +107,28 @@ method.
 Use the `Config` factory for registration and `Config::rules()` for preset
 overrides. `src/rules.php` stores the catalog data.
 
-The shared defaults wrap long fluent chains and array literals at 100 columns;
+The shared defaults wrap long fluent chains and array literals at 120 columns;
 array width includes its closing delimiter and a following statement semicolon.
 Later arguments do not affect that width. Long conditional headers split at
-their boolean operators, and full ternaries split at `?` and `:`. Method calls with more than three syntactic
-arguments also wrap; shorter argument lists wrap when their line exceeds the
-configured width. Existing multiline arrays and argument lists remain
-multiline. Object and nullsafe continuation breaks also preserve multiline
-chains. Array contents and closure bodies do not force short headers or chains
-to expand. Native `no_space_around_double_colon` can collapse a short chain whose
-only continuation breaks precede `::`; long static chains still wrap. See each
-rule's documentation for its supported syntax and boundaries.
+their boolean operators, and full ternaries split at `?` and `:`. These are
+wrapping thresholds, not a general hard line limit.
+
+Method calls with more than three syntactic arguments wrap. A single argument
+uses its own 40-character limit and rejoins its call when short. Two or three
+arguments use the method expression's width, independently of preceding outer
+expressions. Array contents and closure bodies do not force short headers or
+chains to expand. Short continuations join lines containing only closing
+delimiters, including `})->create()` and `)->getJson('/path')->assertOk()`.
+Other existing object and nullsafe continuation breaks preserve multiline
+chains. Native `no_space_around_double_colon` can collapse a short chain whose
+only continuation breaks precede `::`; long static chains still wrap.
+
+Known native unary function composition becomes a PHP 8.5 pipeline, for example
+`array_values(array_filter($values))` becomes `array_filter($values)` followed
+by `|> array_values(...)`. Every pipe stage starts on a new line, including
+existing pipe expressions. See the [pipe rule](function-composition-to-pipe.md)
+for the supported functions and conservative exclusions, and each layout
+rule's documentation for its boundaries.
 
 ## Supported PHP-CS-Fixer versions
 

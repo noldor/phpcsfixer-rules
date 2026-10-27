@@ -42,7 +42,9 @@ final class FluentChainWrappingFixer extends AbstractWrappingFixer
 
     public function isCandidate(Tokens $tokens): bool
     {
-        return $tokens->isAnyTokenKindsFound([...Token::getObjectOperatorKinds(), \T_DOUBLE_COLON]);
+        return $tokens->isAnyTokenKindsFound(
+            [...Token::getObjectOperatorKinds(), \T_DOUBLE_COLON],
+        );
     }
 
     protected function createConfigurationDefinition(): FixerConfigurationResolverInterface
@@ -52,18 +54,28 @@ final class FluentChainWrappingFixer extends AbstractWrappingFixer
                 ->setAllowedTypes(['int'])
                 ->setAllowedValues(
                     [static fn (mixed $value): bool => \is_int($value) && 0 < $value],
-                )
-                ->setDefault(100)
-                ->getOption(),
+                )->setDefault(120)->getOption(),
         ]);
     }
 
     protected function applyFix(SplFileInfo $file, Tokens $tokens): void
     {
+        $chains = $this->chains($tokens);
+        $starts = CallSyntax::methodStarts($tokens);
+        $joined = [];
         $breaks = [];
 
-        foreach ($this->chains($tokens) as $chain) {
-            if (! $this->shouldWrap($tokens, $chain)) {
+        foreach ($chains as $chain) {
+            $joined += $this->joinClosingContinuations($tokens, $chain);
+        }
+
+        foreach ($chains as $chain) {
+            if (! $this->shouldWrap(
+                $tokens,
+                $chain,
+                $starts,
+                $joined,
+            )) {
                 continue;
             }
 
@@ -75,7 +87,9 @@ final class FluentChainWrappingFixer extends AbstractWrappingFixer
             }
 
             foreach (\array_slice($chain['calls'], 1) as $index) {
-                $breaks[$index] = $indent;
+                if (! isset($joined[$index])) {
+                    $breaks[$index] = $indent;
+                }
             }
         }
 
@@ -101,6 +115,47 @@ final class FluentChainWrappingFixer extends AbstractWrappingFixer
                 $this->whitespacesConfig->getLineEnding(),
             );
         }
+    }
+
+    /**
+     * @param array{calls: non-empty-list<int>, end: int} $chain
+     *
+     * @return array<int, true>
+     */
+    private function joinClosingContinuations(Tokens $tokens, array $chain): array
+    {
+        $joined = [];
+        $closingLine = false;
+
+        foreach ($chain['calls'] as $index) {
+            $previous = $tokens->getPrevMeaningfulToken($index);
+            \assert(null !== $previous);
+            $closingLine = $closingLine || Layout::onlyClosingLine($tokens, $previous);
+            $link = $this->chainLink($tokens, $index);
+            \assert(null !== $link);
+            $end = $this->statementEnd($tokens, $link['end']);
+
+            if (! $closingLine
+                || $tokens->getPrevNonWhitespace($index) !== $previous
+                || Layout::joinedLineWidth($tokens, $index, $end) > $this->configuration['max_line_length']
+            ) {
+                $closingLine = false;
+
+                continue;
+            }
+
+            Layout::reindent(
+                $tokens,
+                $index,
+                $link['end'],
+                Layout::indentAt($tokens, $index),
+                Layout::indentAt($tokens, $previous),
+            );
+            Layout::joinBefore($tokens, $index);
+            $joined[$index] = true;
+        }
+
+        return $joined;
     }
 
     /**
@@ -149,9 +204,7 @@ final class FluentChainWrappingFixer extends AbstractWrappingFixer
     private function chainLink(Tokens $tokens, int $index): array|null
     {
         if (! $tokens[$index]->isObjectOperator()
-            && ! $tokens[$index]->isGivenKind(
-                \T_DOUBLE_COLON,
-            )
+            && ! $tokens[$index]->isGivenKind(\T_DOUBLE_COLON)
         ) {
             return null;
         }
@@ -166,9 +219,7 @@ final class FluentChainWrappingFixer extends AbstractWrappingFixer
             $member = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_DYNAMIC_PROP_BRACE, $member);
         } elseif ($tokens[$member]->equals('{')) {
             $member = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_BRACE, $member);
-        } elseif (! $tokens[$member]->isGivenKind(
-            [\T_STRING, \T_VARIABLE],
-        )
+        } elseif (! $tokens[$member]->isGivenKind([\T_STRING, \T_VARIABLE])
             && ! $tokens[$member]->isKeyword()
         ) {
             return null;
@@ -207,28 +258,53 @@ final class FluentChainWrappingFixer extends AbstractWrappingFixer
 
     /**
      * @param array{calls: non-empty-list<int>, end: int} $chain
+     * @param array<int, int> $starts
+     * @param array<int, true> $joined
      */
-    private function shouldWrap(Tokens $tokens, array $chain): bool
+    private function shouldWrap(Tokens $tokens, array $chain, array $starts, array $joined): bool
     {
         if (\count($chain['calls']) < 2) {
             return false;
         }
 
-        if ($this->startsContinuationLine($tokens, $chain['calls'][0])) {
-            return true;
+        foreach ($chain['calls'] as $call) {
+            if (! isset($joined[$call]) && $this->startsContinuationLine($tokens, $call)) {
+                return true;
+            }
         }
 
-        if (Layout::isMultiline($tokens, $chain['calls'][0], $chain['end'])) {
+        $first = $this->chainLink($tokens, $chain['calls'][0]);
+        \assert(null !== $first);
+        $open = $tokens->findBlockStart(Tokens::BLOCK_TYPE_PARENTHESIS, $first['end']);
+        $start = $starts[$open];
+        $end = $this->statementEnd($tokens, $chain['end']);
+
+        if (Layout::spanWidth(
+            $tokens,
+            $start,
+            $end,
+            Layout::indentAt($tokens, $start),
+        ) > $this->configuration['max_line_length']
+        ) {
             return true;
         }
 
         foreach ($chain['calls'] as $call) {
-            if (Layout::lineWidth($tokens, $call) > $this->configuration['max_line_length']) {
+            if ($tokens->isPartialCodeMultiline($start, $call)
+                && Layout::lineWidth($tokens, $call, $end) > $this->configuration['max_line_length']
+            ) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private function statementEnd(Tokens $tokens, int $end): int
+    {
+        $next = $tokens->getNextMeaningfulToken($end);
+
+        return null !== $next && $tokens[$next]->equals(';') ? $next : $end;
     }
 
     private function startsContinuationLine(Tokens $tokens, int $index): bool

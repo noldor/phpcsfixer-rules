@@ -12,6 +12,43 @@ use Noldors\PhpCsFixer\Fixer\MethodCallWrappingFixer;
 
 final class MethodCallWrappingFixerTest extends FixerTestCase
 {
+    #[DataProvider('compactArguments')]
+    public function testSingleArgumentUsesItsOwnConfigurableWidth(string $input, string $expected): void
+    {
+        $this->assertFixerOutput(new MethodCallWrappingFixer(), $input, $expected);
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function compactArguments(): iterable
+    {
+        yield 'short argument on an otherwise long line' => [
+            "<?php\n\$executionId = Context::get('executionId') ?? \$event->job->uuid() ?? Str::uuid()->toString() ?? \$fallbackExecutionId;\n",
+            "<?php\n\$executionId = Context::get('executionId') ?? \$event->job->uuid() ?? Str::uuid()->toString() ?? \$fallbackExecutionId;\n",
+        ];
+
+        yield 'exactly forty source characters stay inline' => [
+            "<?php\n\$scalar->parseLiteral(new StringValueNode(['value' => \$value]));\n",
+            "<?php\n\$scalar->parseLiteral(new StringValueNode(['value' => \$value]));\n",
+        ];
+
+        yield 'expanded short argument rejoins its call' => [
+            "<?php\n\$scalar->parseLiteral(\n    new StringValueNode(['value' => \$value]),\n);\n",
+            "<?php\n\$scalar->parseLiteral(new StringValueNode(['value' => \$value]),);\n",
+        ];
+
+        yield 'two short arguments ignore an outer closure header' => [
+            "<?php\nContext::scope(static function (): void { ContextJob::dispatch('retry', retry: true); }, data: ['source' => 'http']);\n",
+            "<?php\nContext::scope(static function (): void { ContextJob::dispatch('retry', retry: true); }, data: ['source' => 'http']);\n",
+        ];
+
+        yield 'forty-one characters wrap even in a short call' => [
+            "<?php\n\$o->run('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');\n",
+            "<?php\n\$o->run(\n    'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'\n);\n",
+        ];
+    }
+
     #[DataProvider('layouts')]
     public function testWrapsOnlyMethodCallArgumentLists(string $input, string $expected): void
     {
@@ -57,6 +94,13 @@ final class MethodCallWrappingFixerTest extends FixerTestCase
             "<?php\nHandler::{\$method}(1, 2, 3, 4);\n",
             "<?php\nHandler::{\$method}(\n    1,\n    2,\n    3,\n    4\n);\n",
         ];
+
+        foreach (['$o->{factory()}', '$o->{factory()->name}', 'Handler::{factory()}'] as $method) {
+            yield 'dynamic name expression ' . $method => [
+                "<?php\n{$method}(1, 2, 3, 4);\n",
+                "<?php\n{$method}(\n    1,\n    2,\n    3,\n    4\n);\n",
+            ];
+        }
 
         yield 'named arguments' => [
             "<?php\n\$o->run(first: 1, second: 2, third: 3, fourth: 4);\n",
@@ -126,9 +170,9 @@ final class MethodCallWrappingFixerTest extends FixerTestCase
 
         $expandedArray = "<?php\n\$o->run(\n    [\n        1,\n    ],\n);\n";
 
-        yield 'already expanded array arguments are not collapsed' => [
+        yield 'a short array rejoins its call header' => [
             $expandedArray,
-            $expandedArray,
+            "<?php\n\$o->run([\n    1,\n],);\n",
         ];
 
         yield 'array access line breaks still select the call' => [
@@ -136,16 +180,16 @@ final class MethodCallWrappingFixerTest extends FixerTestCase
             "<?php\n\$o->run(\n    \$values[\n        0\n    ]\n);\n",
         ];
 
-        yield 'array method name does not hide argument list breaks' => [
+        yield 'a short reserved-name nested call compacts' => [
             "<?php\n\$o->run(Handler::array(\n    1\n));\n",
-            "<?php\n\$o->run(\n    Handler::array(\n        1\n    )\n);\n",
+            "<?php\n\$o->run(Handler::array(1));\n",
         ];
 
         $longArrayHeader = \str_repeat('x', 100);
 
-        yield 'long call header still selects an array argument' => [
+        yield 'long call header does not expand a short array argument' => [
             "<?php\nHandler::{$longArrayHeader}([\n    1,\n]);\n",
-            "<?php\nHandler::{$longArrayHeader}(\n    [\n        1,\n    ]\n);\n",
+            "<?php\nHandler::{$longArrayHeader}([\n    1,\n]);\n",
         ];
 
         $longArrayBody = "<?php\n\$o->run([\n    '{$longArrayHeader}',\n]);\n";
@@ -227,7 +271,10 @@ final class MethodCallWrappingFixerTest extends FixerTestCase
 
             PHP;
 
-        yield 'named attributed closure with a compound default' => [$namedClosure, $namedClosure];
+        yield 'long named attributed closure header wraps' => [
+            $namedClosure,
+            "<?php\n\$o->run(\n    callback: #[Example] static function (\$value = new Value([1, 2])): void {\n        consume(\$value);\n    }\n);\n",
+        ];
 
         $nestedClosures = <<<'PHP'
             <?php
@@ -324,9 +371,9 @@ final class MethodCallWrappingFixerTest extends FixerTestCase
     }
 
     #[DataProvider('lineLengths')]
-    public function testMeasuresPhysicalLinesInUnicodeCharacters(int $width, string $character, bool $wrap): void
+    public function testMeasuresASingleArgumentInUnicodeCharacters(int $width, string $character, bool $wrap): void
     {
-        $argument = "'" . \str_repeat($character, $width - \mb_strlen('$o->run();') - 2) . "'";
+        $argument = "'" . \str_repeat($character, $width - 2) . "'";
         $input = "<?php\n\$o->run({$argument});\n";
         $expected = $wrap ? "<?php\n\$o->run(\n    {$argument}\n);\n" : $input;
 
@@ -338,13 +385,13 @@ final class MethodCallWrappingFixerTest extends FixerTestCase
      */
     public static function lineLengths(): iterable
     {
-        yield 'exactly 100' => [100, 'a', false];
+        yield 'exactly 40' => [40, 'a', false];
 
-        yield '101 characters' => [101, 'a', true];
+        yield '41 characters' => [41, 'a', true];
 
-        yield '100 Unicode characters' => [100, 'я', false];
+        yield '40 Unicode characters' => [40, 'я', false];
 
-        yield '101 Unicode characters' => [101, 'я', true];
+        yield '41 Unicode characters' => [41, 'я', true];
     }
 
     public function testUsesConfiguredIndentationAndLineEndings(): void
@@ -362,13 +409,53 @@ final class MethodCallWrappingFixerTest extends FixerTestCase
     public function testAcceptsCustomWidthAndArgumentLimit(): void
     {
         $fixer = new MethodCallWrappingFixer();
-        $fixer->configure(['max_line_length' => 80, 'max_single_line_arguments' => 2]);
+        $fixer->configure(
+            ['max_line_length' => 80, 'max_single_line_arguments' => 2],
+        );
 
         $this->assertFixerOutput(
             $fixer,
             "<?php\n\$o->run(1, 2, 3);\n",
             "<?php\n\$o->run(\n    1,\n    2,\n    3\n);\n",
         );
+    }
+
+    public function testTheSingleArgumentLimitCanBeConfiguredIndependently(): void
+    {
+        $fixer = new MethodCallWrappingFixer();
+        $fixer->configure(
+            ['single_argument_max_length' => 5, 'max_line_length' => 120],
+        );
+        $input = "<?php\n\$o->run('abcd');\n";
+        $expected = "<?php\n\$o->run(\n    'abcd'\n);\n";
+
+        $this->assertFixerOutput($fixer, $input, $expected);
+        $fixer->configure(
+            ['single_argument_max_length' => 6, 'max_line_length' => 1],
+        );
+        $this->assertFixerOutput($fixer, $input, $input);
+    }
+
+    public function testShortSingleArgumentsKeepBoundaryComments(): void
+    {
+        foreach (["/* before */\n    'value'", "'value' // after", "'value', /* after comma */"] as $argument) {
+            $input = "<?php\n\$o->run(\n    {$argument}\n);\n";
+
+            $this->assertFixerOutput(new MethodCallWrappingFixer(), $input, $input);
+        }
+    }
+
+    public function testMultipleArgumentsUseTheConfiguredExpressionWidth(): void
+    {
+        $shell = "\$o->run('', 1)";
+
+        foreach ([120, 121] as $width) {
+            $value = \str_repeat('x', $width - \mb_strlen($shell));
+            $input = "<?php\n\$o->run('{$value}', 1);\n";
+            $expected = 120 === $width ? $input : "<?php\n\$o->run(\n    '{$value}',\n    1\n);\n";
+
+            $this->assertFixerOutput(new MethodCallWrappingFixer(), $input, $expected);
+        }
     }
 
     #[DataProvider('invalidOptions')]
@@ -385,7 +472,7 @@ final class MethodCallWrappingFixerTest extends FixerTestCase
      */
     public static function invalidOptions(): iterable
     {
-        foreach (['max_line_length', 'max_single_line_arguments'] as $option) {
+        foreach (['max_line_length', 'max_single_line_arguments', 'single_argument_max_length'] as $option) {
             foreach ([0, -1, '100', 1.5, true] as $index => $value) {
                 yield $option . $index => [$option, $value];
             }

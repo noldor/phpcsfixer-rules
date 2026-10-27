@@ -8,8 +8,11 @@ the supported custom-fixer registration API.
 Keep fixers framework-independent. Register public fixers through `Config::create()`
 in `src/Config.php`, with recommended rules in
 `src/rules.php`. Keep token helpers under `src/Internal/`.
-Preserve significant tokens and literal contents; regression tests must verify output, token
-preservation and idempotence. Respect configured indentation and line endings.
+Layout fixers must preserve significant tokens and literal contents; regression
+tests must verify output, token preservation and idempotence. Syntax rewrites
+must preserve runtime behavior and literal values, with regression coverage for
+evaluation order, precedence and errors. Respect configured indentation and line
+endings.
 
 Use PHP 8.5 with `iconv`, `mbstring`, `dom`, `xml`, `xmlwriter` and `zip` enabled
 for development checks. Run `composer check` and complete independent review

@@ -52,9 +52,7 @@ final class ArrayWrappingFixer extends AbstractWrappingFixer
             }
 
             $open = $tokens[$index]->isGivenKind(\T_ARRAY)
-                ? $tokens->getNextMeaningfulToken(
-                    $index,
-                )
+                ? $tokens->getNextMeaningfulToken($index)
                 : $index;
             \assert(null !== $open);
             $block = Tokens::detectBlockType($tokens[$open]);
@@ -93,9 +91,7 @@ final class ArrayWrappingFixer extends AbstractWrappingFixer
                 ->setAllowedTypes(['int'])
                 ->setAllowedValues(
                     [static fn (mixed $value): bool => \is_int($value) && 0 < $value],
-                )
-                ->setDefault(100)
-                ->getOption(),
+                )->setDefault(120)->getOption(),
         ]);
     }
 }

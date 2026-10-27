@@ -13,7 +13,9 @@ final class Layout
 {
     public static function lineWidth(Tokens $tokens, int $index, int|null $end = null): int
     {
-        return self::width(self::physicalLine($tokens, $index, $end));
+        return self::width(
+            self::physicalLine($tokens, $index, $end),
+        );
     }
 
     public static function spanWidth(Tokens $tokens, int $start, int $end, string $indent): int
@@ -22,6 +24,39 @@ final class Layout
         \assert(false !== $line);
 
         return self::width($indent . $line[0]);
+    }
+
+    public static function onlyClosingLine(Tokens $tokens, int $index): bool
+    {
+        $prefix = self::linePrefix($tokens, $index) . $tokens[$index]->getContent();
+
+        return 1 === \preg_match('/^[\\t ]*[\\)\\]\\}]+$/D', $prefix);
+    }
+
+    public static function joinedLineWidth(Tokens $tokens, int $index, int $end): int
+    {
+        $previous = $tokens->getPrevNonWhitespace($index);
+        \assert(null !== $previous);
+        $prefix = self::linePrefix($tokens, $previous) . $tokens[$previous]->getContent();
+        $line = \preg_split('/\\r\\n|\\n|\\r/', $tokens->generatePartialCode($index, $end), 2);
+        \assert(false !== $line);
+
+        return self::width($prefix . $line[0]);
+    }
+
+    public static function joinBefore(Tokens $tokens, int $index): void
+    {
+        for ($previous = $index - 1; 0 <= $previous; --$previous) {
+            if ($tokens->isEmptyAt($previous)) {
+                continue;
+            }
+
+            if (! $tokens[$previous]->isWhitespace()) {
+                break;
+            }
+
+            $tokens->clearAt($previous);
+        }
     }
 
     public static function indentAt(Tokens $tokens, int $index): string
@@ -103,9 +138,7 @@ final class Layout
         }
 
         $lastComma = [] === $commas ? null : $commas[\array_key_last($commas)];
-        $trailingComma = null !== $lastComma && $tokens->getNextMeaningfulToken(
-            $lastComma,
-        ) === $close;
+        $trailingComma = null !== $lastComma && $tokens->getNextMeaningfulToken($lastComma) === $close;
         self::breakBefore(
             $tokens,
             $close,

@@ -105,16 +105,16 @@ final class ArrayWrappingFixerTest extends FixerTestCase
         ];
 
         $shell = "\$values = ['', 2];";
-        $atLimit = "\$values = ['" . \str_repeat('a', 100 - \mb_strlen($shell)) . "', 2];";
+        $atLimit = "\$values = ['" . \str_repeat('a', 120 - \mb_strlen($shell)) . "', 2];";
 
-        yield 'exactly 100 characters unchanged' => ["<?php\n" . $atLimit, "<?php\n" . $atLimit];
+        yield 'exactly 120 characters unchanged' => ["<?php\n" . $atLimit, "<?php\n" . $atLimit];
         $overLimit = \str_replace("', 2]", "a', 2]", $atLimit);
 
-        yield '101 characters wrapped' => [
+        yield '121 characters wrapped' => [
             "<?php\n" . $overLimit,
-            "<?php\n\$values = [\n    '" . \str_repeat('a', 101 - \mb_strlen($shell)) . "',\n    2\n];",
+            "<?php\n\$values = [\n    '" . \str_repeat('a', 121 - \mb_strlen($shell)) . "',\n    2\n];",
         ];
-        $unicodeAtLimit = "\$values = ['" . \str_repeat('я', 100 - \mb_strlen($shell)) . "', 2];";
+        $unicodeAtLimit = "\$values = ['" . \str_repeat('я', 120 - \mb_strlen($shell)) . "', 2];";
 
         yield 'width counts characters rather than bytes' => [
             "<?php\n" . $unicodeAtLimit,

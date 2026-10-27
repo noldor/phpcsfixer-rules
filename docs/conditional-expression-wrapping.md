@@ -16,7 +16,8 @@ if ($result instanceof Deferred
 
 Long full ternary expressions put `?` and `:` on separate lines. When the
 condition itself needs wrapping at top-level boolean operators, its operands use one
-continuation indent and the result branches use two:
+continuation indent and the result branches use two. For example, with
+`max_line_length` set to 100:
 
 ```php
 $correlationId = \is_string($header)
@@ -33,10 +34,10 @@ Operators inside a nested call, array, string or parenthesized group are not
 outer operand boundaries. Nested ternaries retain their branch indentation.
 
 ```php
-'Noldors/conditional_expression_wrapping' => ['max_line_length' => 100],
+'Noldors/conditional_expression_wrapping' => ['max_line_length' => 120],
 ```
 
-`max_line_length` must be a positive integer and defaults to 100. Width counts
+`max_line_length` must be a positive integer and defaults to 120. Width counts
 Unicode characters with four-column tab stops and includes indentation. A root
 ternary also includes its assignment or return prefix; nested ternaries are
 measured independently of surrounding comparisons and calls. Following statement bodies
