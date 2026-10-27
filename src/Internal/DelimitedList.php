@@ -27,7 +27,9 @@ final class DelimitedList
             $previous = $tokens->getPrevMeaningfulToken($index);
 
             if ($tokens[$index]->isGivenKind(\T_CLASS)
-                && null !== $previous && ! $tokens[$previous]->isGivenKind(\T_DOUBLE_COLON)) {
+                && null !== $previous
+                && ! $tokens[$previous]->isGivenKind(\T_DOUBLE_COLON)
+            ) {
                 $index = self::anonymousClassEnd($tokens, $index);
 
                 continue;

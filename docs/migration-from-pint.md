@@ -14,13 +14,13 @@ entries not explicitly repeated by that configuration:
 - `general_phpdoc_tag_rename`
 - `no_multiple_statements_per_line`
 
-Three custom multiline fixers are appended, for 273 entries in total. All 270 native entries remain unchanged, including
+Four custom multiline fixers are appended, for 274 entries in total. All 270 native entries remain unchanged, including
 27 disabled rules. Nested options and their ordering remain intact.
 
 The source checkout retains the [explicit configuration snapshot](../tests/Fixtures/pint.json)
 and [Laravel preset snapshot](../tests/Fixtures/laravel-preset.json). Parity tests
 compare native keys and full values independently against both `src/rules.php`
-and `Config::rules()`. They also verify the three additions and that the complete
+and `Config::rules()`. They also verify the four additions and that the complete
 configuration can be loaded by PHP-CS-Fixer.
 The snapshots are development fixtures and are excluded from dist archives.
 
@@ -102,12 +102,15 @@ method.
 Use the `Config` factory for registration and `Config::rules()` for preset
 overrides. `src/rules.php` stores the catalog data.
 
-The shared defaults wrap fluent chains and array literals when their physical
-source line exceeds 100 columns. Method calls with more than three syntactic
+The shared defaults wrap long fluent chains and array literals at 100 columns;
+array width includes its closing delimiter and a following statement semicolon.
+Later arguments do not affect that width. Long conditional headers split at
+their boolean operators, and full ternaries split at `?` and `:`. Method calls with more than three syntactic
 arguments also wrap; shorter argument lists wrap when their line exceeds the
 configured width. Existing multiline arrays and argument lists remain
 multiline. Object and nullsafe continuation breaks also preserve multiline
-chains. Native `no_space_around_double_colon` can collapse a short chain whose
+chains. Array contents and closure bodies do not force short headers or chains
+to expand. Native `no_space_around_double_colon` can collapse a short chain whose
 only continuation breaks precede `::`; long static chains still wrap. See each
 rule's documentation for its supported syntax and boundaries.
 

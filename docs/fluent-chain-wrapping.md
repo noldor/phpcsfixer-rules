@@ -25,6 +25,16 @@ physical source line, including its surrounding code. A line exactly at the
 limit stays inline. Independent chains sharing an overlong physical line can
 therefore both be expanded.
 
+Line breaks inside array literals and closure bodies do not make a short chain
+multiline. `User::factory()->create([...])` keeps its header together, and a
+continuation after a closure can remain on the closing line:
+
+```php
+Artisan::command('inspire', function (): void {
+    $this->comment(Inspiring::quote());
+})->purpose('Display an inspiring quote');
+```
+
 Existing object and nullsafe continuation breaks keep a chain multiline, and
 any remaining successive calls on the same line are separated. In the complete
 preset, native `no_space_around_double_colon` can remove the only multiline
@@ -50,6 +60,8 @@ chain merely because its line is long.
   comments, string contents and member names are preserved. An inline comment
   before a continued call stays before that call. Chains inside complex string
   interpolation retain their value and surrounding literal text.
+- When a continuation moves, its multiline argument whitespace is reindented
+  with it in the same pass.
 
 The rule does not split an individually long string or argument expression.
 Use the shared rule set's argument wrapping and native indentation rules for

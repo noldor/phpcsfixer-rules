@@ -51,9 +51,11 @@ final class ArrayWrappingFixer extends AbstractWrappingFixer
                 continue;
             }
 
-            $open = $tokens[$index]->isGivenKind(\T_ARRAY) ? $tokens->getNextMeaningfulToken(
-                $index,
-            ) : $index;
+            $open = $tokens[$index]->isGivenKind(\T_ARRAY)
+                ? $tokens->getNextMeaningfulToken(
+                    $index,
+                )
+                : $index;
             \assert(null !== $open);
             $block = Tokens::detectBlockType($tokens[$open]);
             \assert(null !== $block);
@@ -63,8 +65,12 @@ final class ArrayWrappingFixer extends AbstractWrappingFixer
                 continue;
             }
 
+            $end = $tokens->getNextMeaningfulToken($close);
+            $end = null !== $end && $tokens[$end]->equals(';') ? $end : $close;
+
             if (! $tokens->isPartialCodeMultiline($open, $close)
-                && Layout::lineWidth($tokens, $open) <= $configuration['max_line_length']) {
+                && Layout::lineWidth($tokens, $open, $end) <= $configuration['max_line_length']
+            ) {
                 continue;
             }
 

@@ -9,6 +9,7 @@ use PhpCsFixer\Config as NativeConfig;
 use Noldors\PhpCsFixer\Fixer\ArrayWrappingFixer;
 use Noldors\PhpCsFixer\Fixer\MethodCallWrappingFixer;
 use Noldors\PhpCsFixer\Fixer\FluentChainWrappingFixer;
+use Noldors\PhpCsFixer\Fixer\ConditionalExpressionWrappingFixer;
 
 final class Config extends NativeConfig
 {
@@ -20,6 +21,7 @@ final class Config extends NativeConfig
                 new FluentChainWrappingFixer(),
                 new MethodCallWrappingFixer(),
                 new ArrayWrappingFixer(),
+                new ConditionalExpressionWrappingFixer(),
             ],
         )
             ->setRules(self::rules())
