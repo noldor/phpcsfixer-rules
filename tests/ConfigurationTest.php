@@ -49,6 +49,11 @@ final class ConfigurationTest extends TestCase
             "<?php\n\ndeclare(strict_types = 1);\n\$this->assertSame(\n    \$expected,\n    \$scalar->parseLiteral(new StringValueNode(['value' => \$value])),\n);\n",
         ];
 
+        yield 'compact: inner array rejoins before its enclosing call wraps' => [
+            "<?php\n\ndeclare(strict_types = 1);\n\$this->assertNotNull(\$connection->getCollection(\$model->getTable())\n    ->findOne(\n        ['properties.group' => 'bson-group'],\n    ));\n",
+            "<?php\n\ndeclare(strict_types = 1);\n\$this->assertNotNull(\n    \$connection->getCollection(\$model->getTable())\n        ->findOne(['properties.group' => 'bson-group']),\n);\n",
+        ];
+
         yield 'compact: closing closure delimiters keep the continuation inline' => [
             "<?php\n\ndeclare(strict_types = 1);\n\$result = User::factory()->state(function (): array {\n    \$name = 'Example';\n    return ['name' => \$name];\n})\n    ->create();\n",
             "<?php\n\ndeclare(strict_types = 1);\n\$result = User::factory()->state(function (): array {\n    \$name = 'Example';\n\n    return ['name' => \$name];\n})->create();\n",
