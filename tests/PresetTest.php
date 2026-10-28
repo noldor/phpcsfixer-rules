@@ -16,7 +16,7 @@ use Symfony\Component\Filesystem\Filesystem;
 
 final class PresetTest extends TestCase
 {
-    public function testTheRulesEntrypointPreservesNativeRulesWithTheDocumentedClosureOverride(): void
+    public function testTheRulesEntrypointPreservesNativeRulesWithTheDocumentedOverrides(): void
     {
         $expected = $this->expectedNativeRules();
         $actual = \array_filter($this->entrypointRules(), static fn (string $name): bool => ! \str_starts_with($name, 'Noldors/'), \ARRAY_FILTER_USE_KEY);
@@ -26,7 +26,7 @@ final class PresetTest extends TestCase
         $this->assertSame($expected, $actual);
     }
 
-    public function testTheConvenienceApiPreservesNativeRulesWithTheDocumentedClosureOverride(): void
+    public function testTheConvenienceApiPreservesNativeRulesWithTheDocumentedOverrides(): void
     {
         $actual = \array_filter(Config::rules(), static fn (string $name): bool => ! \str_starts_with($name, 'Noldors/'), \ARRAY_FILTER_USE_KEY);
         $expected = $this->expectedNativeRules();
@@ -196,6 +196,12 @@ final class PresetTest extends TestCase
         );
         $options['allow_single_line_anonymous_functions'] = false;
         $expected['braces_position'] = $options;
+        $expected['no_useless_concat_operator'] = false;
+        $expected['string_implicit_backslashes'] = [
+            'double_quoted' => 'ignore',
+            'single_quoted' => 'escape',
+            'heredoc' => 'ignore',
+        ];
 
         return $expected;
     }

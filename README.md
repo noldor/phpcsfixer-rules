@@ -50,6 +50,7 @@ vendor/bin/php-cs-fixer fix --dry-run --diff
 - [Array wrapping](docs/array-wrapping.md)
 - [Conditional expression wrapping](docs/conditional-expression-wrapping.md)
 - [Function composition to pipe](docs/function-composition-to-pipe.md)
+- [String literal safety](docs/string-literal-safety.md)
 - [Migrating a project from Pint](docs/migration-from-pint.md)
 
 Long arrays used directly as a `foreach` iterable still require a meaningful
