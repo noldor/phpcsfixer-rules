@@ -560,9 +560,7 @@ return [
         'private_methods' => true,
     ],
     'no_unset_on_property' => true,
-    'no_useless_concat_operator' => [
-        'juggle_simple_strings' => true,
-    ],
+    'no_useless_concat_operator' => false,
     'no_useless_else' => true,
     'no_useless_nullsafe_operator' => true,
     'no_useless_printf' => true,
@@ -733,9 +731,9 @@ return [
     'strict_comparison' => true,
     'strict_param' => true,
     'string_implicit_backslashes' => [
-        'double_quoted' => 'escape',
+        'double_quoted' => 'ignore',
         'single_quoted' => 'escape',
-        'heredoc' => 'escape',
+        'heredoc' => 'ignore',
     ],
     'string_length_to_empty' => true,
     'string_line_ending' => true,

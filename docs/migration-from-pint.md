@@ -15,17 +15,21 @@ entries not explicitly repeated by that configuration:
 - `no_multiple_statements_per_line`
 
 Four custom layout fixers and one function-to-pipe fixer are appended, for 275
-entries in total. All 270 native rule keys remain, including 27 disabled rules.
+entries in total. All 270 native rule keys remain, including 28 disabled rules.
 One explicit option override sets
 `braces_position.allow_single_line_anonymous_functions` to `false`, so closure
-bodies expand while short calls inside them remain inline. Every other native
-option and its ordering remain unchanged.
+bodies expand while short calls inside them remain inline. String safety
+overrides disable `no_useless_concat_operator` and set
+`string_implicit_backslashes.double_quoted` and `.heredoc` to `ignore`.
+See [string literal safety](string-literal-safety.md) for the reasons and examples.
+Every other native option and its ordering remain unchanged.
 
 The source checkout retains the [explicit configuration snapshot](../tests/Fixtures/pint.json)
 and [Laravel preset snapshot](../tests/Fixtures/laravel-preset.json). Parity tests
 compare native keys and full values independently against both `src/rules.php`
-and `Config::rules()`. They apply only that documented closure override and verify the five additions and that the complete
-configuration can be loaded by PHP-CS-Fixer.
+and `Config::rules()`. They apply the documented closure and string safety
+overrides and verify the five additions and that the complete configuration can
+be loaded by PHP-CS-Fixer.
 The snapshots are development fixtures and are excluded from dist archives.
 
 The resolved native preset is embedded in `src/rules.php`; it does not depend on
