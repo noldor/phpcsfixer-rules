@@ -4,11 +4,14 @@ declare(strict_types = 1);
 
 namespace Noldors\PhpCsFixer;
 
+use Closure;
+use SplFileInfo;
 use PhpCsFixer\Finder;
 use PhpCsFixer\Config as NativeConfig;
 use Noldors\PhpCsFixer\Fixer\ArrayWrappingFixer;
 use Noldors\PhpCsFixer\Fixer\MethodCallWrappingFixer;
 use Noldors\PhpCsFixer\Fixer\FluentChainWrappingFixer;
+use Noldors\PhpCsFixer\Internal\ValidatorMethodOrderPolicy;
 use Noldors\PhpCsFixer\Fixer\FunctionCompositionToPipeFixer;
 use Noldors\PhpCsFixer\Fixer\ConditionalExpressionWrappingFixer;
 
@@ -57,5 +60,22 @@ final class Config extends NativeConfig
         $rules = require __DIR__ . '/rules.php';
 
         return $rules;
+    }
+
+    /**
+     * @param Closure(SplFileInfo): bool $validatorFiles
+     */
+    public function withValidatorMethodOrder(Closure $validatorFiles, string $cacheVersion): self
+    {
+        $this->setRuleCustomisationPolicy(
+            new ValidatorMethodOrderPolicy(
+                $validatorFiles,
+                $cacheVersion,
+                $this->getRules(),
+                $this->getRuleCustomisationPolicy(),
+            ),
+        );
+
+        return $this;
     }
 }
