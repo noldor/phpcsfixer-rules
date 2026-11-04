@@ -161,6 +161,7 @@ final class Layout
                 $lineEnding,
             );
         }
+
         self::breakAfter(
             $tokens,
             $open,
@@ -225,6 +226,7 @@ final class Layout
             if (! $tokens[$index]->isGivenKind(\T_WHITESPACE)) {
                 continue;
             }
+
             $content = \preg_replace_callback(
                 '/(\\r\\n|\\n|\\r)([\\t ]*)/',
                 static fn (array $match): string => $match[1] . (\str_starts_with($match[2], $oldIndent)
@@ -309,6 +311,7 @@ final class Layout
             if (false !== $newline) {
                 return \mb_substr($content, $newline + 1) . $prefix;
             }
+
             $prefix = $content . $prefix;
         }
 
@@ -326,6 +329,7 @@ final class Layout
             if (false !== $newline) {
                 return $suffix . \mb_substr($content, 0, $newline);
             }
+
             $suffix .= $content;
         }
 

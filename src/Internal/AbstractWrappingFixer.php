@@ -6,9 +6,7 @@ namespace Noldors\PhpCsFixer\Internal;
 
 use SplFileInfo;
 use PhpCsFixer\Tokenizer\Tokens;
-use PhpCsFixer\WhitespacesFixerConfig;
 use PhpCsFixer\Fixer\ConfigurableFixerInterface;
-use PhpCsFixer\Fixer\WhitespacesAwareFixerInterface;
 use PhpCsFixer\FixerConfiguration\FixerConfigurationResolverInterface;
 
 /**
@@ -16,20 +14,18 @@ use PhpCsFixer\FixerConfiguration\FixerConfigurationResolverInterface;
  *
  * @implements ConfigurableFixerInterface<array<string, mixed>, array<string, positive-int>>
  */
-abstract class AbstractWrappingFixer implements ConfigurableFixerInterface, WhitespacesAwareFixerInterface
+abstract class AbstractWrappingFixer extends AbstractWhitespaceAwareFixer implements ConfigurableFixerInterface
 {
     /**
      * @var array<string, positive-int>
      */
     protected array $configuration;
 
-    protected WhitespacesFixerConfig $whitespacesConfig;
-
     private readonly FixerConfigurationResolverInterface $configurationDefinition;
 
     public function __construct()
     {
-        $this->whitespacesConfig = new WhitespacesFixerConfig('    ', "\n");
+        parent::__construct();
         $this->configurationDefinition = $this->createConfigurationDefinition();
         $this->configure([]);
     }
@@ -65,10 +61,5 @@ abstract class AbstractWrappingFixer implements ConfigurableFixerInterface, Whit
     final public function isRisky(): bool
     {
         return false;
-    }
-
-    final public function setWhitespacesConfig(WhitespacesFixerConfig $config): void
-    {
-        $this->whitespacesConfig = $config;
     }
 }

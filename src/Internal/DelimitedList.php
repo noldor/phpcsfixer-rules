@@ -57,6 +57,7 @@ final class DelimitedList
             if ($tokens[$index]->equals('{')) {
                 return $end;
             }
+
             $index = $end;
         }
 

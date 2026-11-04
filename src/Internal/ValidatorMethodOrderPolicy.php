@@ -35,6 +35,7 @@ final class ValidatorMethodOrderPolicy implements RuleCustomisationPolicyInterfa
         if ($previous instanceof self) {
             throw new InvalidArgumentException('An ordered_class_elements customiser already exists; choose one ordering policy explicitly.');
         }
+
         $this->cacheVersion = \hash('sha256', \json_encode([
             'validator-method-order-v2',
             $cacheVersion,
@@ -55,6 +56,7 @@ final class ValidatorMethodOrderPolicy implements RuleCustomisationPolicyInterfa
         if (isset($customisers['ordered_class_elements'])) {
             throw new InvalidArgumentException('An ordered_class_elements customiser already exists; choose one ordering policy explicitly.');
         }
+
         $fixer = $this->configuredFixer();
 
         return [
@@ -68,11 +70,13 @@ final class ValidatorMethodOrderPolicy implements RuleCustomisationPolicyInterfa
         if (null !== $this->fixer) {
             return $this->fixer;
         }
+
         $configuration = new RuleSet($this->rules)->getRules()['ordered_class_elements'] ?? false;
 
         if (false === $configuration) {
             throw new InvalidArgumentException('Enable ordered_class_elements before selecting validator method order.');
         }
+
         $fixer = new OrderedClassElementsFixer();
         $resolved = $this->nativeConfiguration(
             $fixer->getConfigurationDefinition()->resolve(
@@ -114,6 +118,7 @@ final class ValidatorMethodOrderPolicy implements RuleCustomisationPolicyInterfa
         if (! \is_array($order) || ! \array_is_list($order)) {
             throw new InvalidArgumentException('The native ordered_class_elements order must be a list of strings.');
         }
+
         $named = ['method:rules', 'method:messages', 'method:attributes'];
         $result = [];
 
@@ -126,6 +131,7 @@ final class ValidatorMethodOrderPolicy implements RuleCustomisationPolicyInterfa
                 $result[] = $element;
             }
         }
+
         $position = \count($result);
 
         foreach ($result as $index => $element) {
@@ -135,6 +141,7 @@ final class ValidatorMethodOrderPolicy implements RuleCustomisationPolicyInterfa
                 break;
             }
         }
+
         \array_splice($result, $position, 0, $named);
 
         return $result;

@@ -14,6 +14,7 @@ use Noldors\PhpCsFixer\Fixer\FluentChainWrappingFixer;
 use Noldors\PhpCsFixer\Internal\ValidatorMethodOrderPolicy;
 use Noldors\PhpCsFixer\Fixer\FunctionCompositionToPipeFixer;
 use Noldors\PhpCsFixer\Fixer\ConditionalExpressionWrappingFixer;
+use Noldors\PhpCsFixer\Fixer\BlankLineAfterControlStructureFixer;
 
 final class Config extends NativeConfig
 {
@@ -26,6 +27,7 @@ final class Config extends NativeConfig
             new ArrayWrappingFixer(),
             new ConditionalExpressionWrappingFixer(),
             new FunctionCompositionToPipeFixer(),
+            new BlankLineAfterControlStructureFixer(),
         ], )
             ->setRules(self::rules())
             ->setRiskyAllowed(true)
