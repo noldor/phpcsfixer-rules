@@ -761,4 +761,5 @@ return [
     'Noldors/function_composition_to_pipe' => [
         'max_line_length' => 120,
     ],
+    'Noldors/blank_line_after_control_structure' => true,
 ];

@@ -27,6 +27,21 @@ final class ConfigurationTest extends TestCase
      */
     public static function readableExpressions(): iterable
     {
+        yield 'control guard before assignment' => [
+            "<?php\n\ndeclare(strict_types = 1);\n\nif (\$context->hasHidden('audit.source')) {\n    return;\n}\n\$source = \\getenv('AUDIT_SOURCE') ?: 'cli';\n",
+            "<?php\n\ndeclare(strict_types = 1);\n\nif (\$context->hasHidden('audit.source')) {\n    return;\n}\n\n\$source = \\getenv('AUDIT_SOURCE') ?: 'cli';\n",
+        ];
+
+        yield 'throw guard before wrapped method call' => [
+            "<?php\n\ndeclare(strict_types = 1);\n\nif (! \$valid) {\n    throw new \\RuntimeException();\n}\n\$handler->next('first', 'second', 'third', 'fourth');\n",
+            "<?php\n\ndeclare(strict_types = 1);\n\nif (! \$valid) {\n    throw new \\RuntimeException();\n}\n\n\$handler->next(\n    'first',\n    'second',\n    'third',\n    'fourth',\n);\n",
+        ];
+
+        yield 'control chains and comments retain their boundaries' => [
+            "<?php\n\ndeclare(strict_types = 1);\n\nif (\$a) {\n    \\first();\n} elseif (\$b) {\n    \\second();\n} else {\n    \\third();\n} // complete\n// Next step\n\\nextStep();\n",
+            "<?php\n\ndeclare(strict_types = 1);\n\nif (\$a) {\n    \\first();\n} elseif (\$b) {\n    \\second();\n} else {\n    \\third();\n} // complete\n\n// Next step\n\\nextStep();\n",
+        ];
+
         $inlineArrayCall = "<?php\n\ndeclare(strict_types = 1);\nContext::forget(['command', 'job', 'jobId', 'jobAttempt']);\n";
 
         yield 'compact: single array longer than forty characters stays inline' => [

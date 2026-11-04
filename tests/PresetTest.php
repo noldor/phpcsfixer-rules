@@ -40,7 +40,7 @@ final class PresetTest extends TestCase
         $rules = $this->entrypointRules();
         $custom = \array_filter($rules, static fn (string $name): bool => \str_starts_with($name, 'Noldors/'), \ARRAY_FILTER_USE_KEY);
 
-        $this->assertCount(275, $rules);
+        $this->assertCount(276, $rules);
         $this->assertSame(
             [
                 'Noldors/fluent_chain_wrapping' => ['max_line_length' => 120],
@@ -52,6 +52,7 @@ final class PresetTest extends TestCase
                 'Noldors/array_wrapping' => ['max_line_length' => 120],
                 'Noldors/conditional_expression_wrapping' => ['max_line_length' => 120],
                 'Noldors/function_composition_to_pipe' => ['max_line_length' => 120],
+                'Noldors/blank_line_after_control_structure' => true,
             ],
             $custom,
         );
@@ -72,6 +73,7 @@ final class PresetTest extends TestCase
                 'Noldors/array_wrapping',
                 'Noldors/conditional_expression_wrapping',
                 'Noldors/function_composition_to_pipe',
+                'Noldors/blank_line_after_control_structure',
             ],
             \array_map(static fn ($fixer): string => $fixer->getName(), $config->getCustomFixers()),
         );

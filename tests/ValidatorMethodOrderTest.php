@@ -296,6 +296,7 @@ final class ValidatorMethodOrderTest extends TestCase
                 $warmup = new Process($command, $root);
                 $this->assertSame(0, $warmup->run(), $warmup->getOutput() . $warmup->getErrorOutput());
             }
+
             $filesystem->dumpFile($root . '/config.php', "<?php\nrequire {$autoload};\n{$configuration}\n");
             $process = new Process($command, $root);
             $this->assertSame(0, $process->run(), $process->getOutput() . $process->getErrorOutput());
@@ -331,8 +332,10 @@ final class ValidatorMethodOrderTest extends TestCase
             if (\is_array($token) && \T_WHITESPACE === $token[0]) {
                 continue;
             }
+
             $tokens[] = \is_array($token) ? $token[0] . ':' . $token[1] : $token;
         }
+
         \sort($tokens);
 
         return $tokens;

@@ -14,7 +14,7 @@ entries not explicitly repeated by that configuration:
 - `general_phpdoc_tag_rename`
 - `no_multiple_statements_per_line`
 
-Four custom layout fixers and one function-to-pipe fixer are appended, for 275
+Five custom layout fixers and one function-to-pipe fixer are appended, for 276
 entries in total. All 270 native rule keys remain, including 28 disabled rules.
 One explicit option override sets
 `braces_position.allow_single_line_anonymous_functions` to `false`, so closure
@@ -28,7 +28,7 @@ The source checkout retains the [explicit configuration snapshot](../tests/Fixtu
 and [Laravel preset snapshot](../tests/Fixtures/laravel-preset.json). Parity tests
 compare native keys and full values independently against both `src/rules.php`
 and `Config::rules()`. They apply the documented closure and string safety
-overrides and verify the five additions and that the complete configuration can
+overrides and verify the six additions and that the complete configuration can
 be loaded by PHP-CS-Fixer.
 The snapshots are development fixtures and are excluded from dist archives.
 
