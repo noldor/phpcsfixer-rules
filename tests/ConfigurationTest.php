@@ -341,8 +341,7 @@ final class ConfigurationTest extends TestCase
                 $token[0],
                 $token[1],
             ]
-            : $token, $tokens)
-            |> \array_values(...);
+            : $token, $tokens) |> \array_values(...);
     }
 
     private function format(string $code): string

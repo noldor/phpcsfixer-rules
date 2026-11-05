@@ -16,6 +16,18 @@ use PHPUnit\Framework\Attributes\DataProvider;
 
 final class IndentationInteractionTest extends TestCase
 {
+    public function testShortPipeRemainsOnTheArrowFunctionLine(): void
+    {
+        $input = "<?php\nreturn Attribute::set(\n    static fn (string \$value): string => \\mb_trim(\$value)\n        |> \\mb_strtolower(...),\n);\n";
+        $actual = $this->formatUntilStable($input);
+
+        $this->assertStringContainsString(
+            'static fn (string $value): string => \\mb_trim($value) |> \\mb_strtolower(...),',
+            $actual,
+        );
+        $this->assertSame($actual, $this->format($actual));
+    }
+
     #[DataProvider('widthBoundaries')]
     public function testTheFullPresetIsStableAtWidthBoundaries(string $prefix, string $suffix, bool $insideBlock): void
     {

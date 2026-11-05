@@ -135,10 +135,10 @@ only continuation breaks precede `::`; long static chains still wrap.
 
 Known native unary function composition becomes a PHP 8.5 pipeline, for example
 `array_values(array_filter($values))` becomes `array_filter($values)` followed
-by `|> array_values(...)`. Pipe stages start on new lines, except for short
-stages that can join closing-only lines within 120 columns, such as
-`) |> array_values(...)`. Comments prevent joining. Existing pipe expressions
-follow the same layout. See the [pipe rule](function-composition-to-pipe.md)
+by `|> array_values(...)`. Pipe stages share the preceding line when they fit
+`max_line_length`, including short arrow-function bodies and lines such as
+`) |> array_values(...)`. Longer stages wrap; comments prevent joining.
+Existing pipe expressions follow the same layout. See the [pipe rule](function-composition-to-pipe.md)
 for the supported functions and conservative exclusions, and each layout
 rule's documentation for its boundaries.
 

@@ -8,13 +8,21 @@ around another function call as a PHP 8.5 pipeline:
 $allowed = \array_values(\array_filter($history, $predicate));
 
 // After:
-$allowed = \array_filter($history, $predicate)
-    |> \array_values(...);
+$allowed = \array_filter($history, $predicate) |> \array_values(...);
 ```
 
-Each `|>` starts on a new line with one continuation indent, except when a
-short stage can share a line containing only closing delimiters. Such a stage
-uses one space after the closing delimiters, for example:
+Each `|>` shares the preceding line when the resulting line fits
+`max_line_length`. Otherwise it starts on a new line with one continuation
+indent. This also joins previously wrapped stages, including short arrow-function
+bodies:
+
+```php
+return Attribute::set(
+    static fn (string $value): string => \mb_trim($value) |> \mb_strtolower(...),
+);
+```
+
+Stages can also share a line containing only closing delimiters, for example:
 
 ```php
 $outside = \array_filter(
@@ -23,10 +31,10 @@ $outside = \array_filter(
 ) |> \array_values(...);
 ```
 
-Joining requires the resulting closing line to fit `max_line_length` and have
-no intervening comment. This exception applies at any stage in the pipeline.
-Stages following ordinary call content retain their own lines. This also formats
-existing pipelines, including pipelines with user-defined callables. Multiple
+Joining requires the resulting line, including indentation and enclosing suffix,
+to fit `max_line_length` and have no intervening comment. Stages are placed in
+order, keeping as many on the current line as fit. This also formats existing
+pipelines, including pipelines with user-defined callables. Multiple
 unary wrappers become successive stages in their original invocation order.
 The first call retains its arguments and callback; no new closure, capture or
 intermediate variable is introduced.
@@ -66,8 +74,8 @@ syntax rewrite.
 
 `max_line_length` must be a positive integer. When the pipeline's first stage is
 a long function call with multiple arguments, those arguments get separate
-lines. Short stages may join closing-only lines up to the same width; other
-stages start on separate lines regardless of width.
+lines. Pipe stages join the preceding line up to the same width and wrap only
+when they would exceed it or an intervening comment prevents joining.
 Unicode characters count once and tabs advance to four-column tab stops.
 Configured indentation and line endings are respected.
 

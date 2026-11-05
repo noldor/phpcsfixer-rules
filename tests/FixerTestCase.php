@@ -35,7 +35,6 @@ abstract class FixerTestCase extends TestCase
         return \array_map(static fn (array|string $token): array|string => \is_array($token) ? [
             $token[0],
             $token[1],
-        ] : $token, $tokens)
-            |> \array_values(...);
+        ] : $token, $tokens) |> \array_values(...);
     }
 }
