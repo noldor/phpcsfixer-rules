@@ -15,6 +15,57 @@ use Noldors\PhpCsFixer\Fixer\FunctionCompositionToPipeFixer;
 
 final class FunctionCompositionToPipeFixerTest extends FixerTestCase
 {
+    #[DataProvider('widthBasedPipelines')]
+    public function testPipelinesWrapOnlyWhenTheLineIsTooLong(string $input, string $expected, int $width = 120): void
+    {
+        $fixer = new FunctionCompositionToPipeFixer();
+        $fixer->configure(['max_line_length' => $width]);
+
+        $this->assertFixerOutput($fixer, $input, $expected);
+    }
+
+    /**
+     * @return iterable<string, array{0: string, 1: string, 2?: int}>
+     */
+    public static function widthBasedPipelines(): iterable
+    {
+        yield 'attribute setter joins a short arrow body' => [
+            "<?php\nreturn Attribute::set(\n            static fn (string \$value): string => \\mb_trim(\$value)\n                |> \\mb_strtolower(...),\n        );\n",
+            "<?php\nreturn Attribute::set(\n            static fn (string \$value): string => \\mb_trim(\$value) |> \\mb_strtolower(...),\n        );\n",
+        ];
+
+        yield 'short stages share a line' => [
+            "<?php\n\$result = \$value\n    |> first(...)\n    |> second(...);\n",
+            "<?php\n\$result = \$value |> first(...) |> second(...);\n",
+        ];
+
+        yield 'only overflowing stages wrap at the configured width' => [
+            "<?php\n\$result = \$value |> first(...) |> second(...);\n",
+            "<?php\n\$result = \$value |> first(...)\n    |> second(...);\n",
+            35,
+        ];
+
+        foreach ([120, 121] as $width) {
+            $name = \str_repeat('x', $width - \mb_strlen('    return consume($value |> (...));'));
+
+            yield 'ordinary line including enclosing suffix at ' . $width . ' columns' => [
+                "<?php\n    return consume(\$value\n        |> {$name}(...));\n",
+                "<?php\n    return consume(\$value" . (120 === $width ? ' ' : "\n        ") . "|> {$name}(...));\n",
+            ];
+        }
+
+        yield 'comments prevent joining ordinary lines' => [
+            "<?php\n\$result = \$value // keep\n    |> first(...);\n",
+            "<?php\n\$result = \$value // keep\n    |> first(...);\n",
+        ];
+
+        yield 'multiline literal uses only its closing physical line' => [
+            "<?php\n\$result = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\nx'\n    |> trim(...);\n",
+            "<?php\n\$result = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\nx' |> trim(...);\n",
+            35,
+        ];
+    }
+
     #[DataProvider('compositions')]
     public function testPreservesCompositionSemantics(string $input, string $expected): void
     {
@@ -30,32 +81,32 @@ final class FunctionCompositionToPipeFixerTest extends FixerTestCase
     {
         yield 'array filter followed by values' => [
             "<?php\n\$result = \\array_values(\\array_filter(\$values));\n",
-            "<?php\n\$result = \\array_filter(\$values)\n    |> \\array_values(...);\n",
+            "<?php\n\$result = \\array_filter(\$values) |> \\array_values(...);\n",
         ];
 
         yield 'multiple unary layers keep invocation order' => [
             "<?php\n\$result = \\array_reverse(\\array_values(\\array_filter(\$values)));\n",
-            "<?php\n\$result = \\array_filter(\$values)\n    |> \\array_values(...)\n    |> \\array_reverse(...);\n",
+            "<?php\n\$result = \\array_filter(\$values) |> \\array_values(...) |> \\array_reverse(...);\n",
         ];
 
         yield 'global unqualified functions resolve to native functions' => [
             "<?php\n\$result = array_values(array_filter(\$values));\n",
-            "<?php\n\$result = array_filter(\$values)\n    |> array_values(...);\n",
+            "<?php\n\$result = array_filter(\$values) |> array_values(...);\n",
         ];
 
         yield 'explicit import aliases preserve their names' => [
             "<?php\nnamespace Example;\nuse function array_values as values;\n\$result = values(\\array_filter(\$values));\n",
-            "<?php\nnamespace Example;\nuse function array_values as values;\n\$result = \\array_filter(\$values)\n    |> values(...);\n",
+            "<?php\nnamespace Example;\nuse function array_values as values;\n\$result = \\array_filter(\$values) |> values(...);\n",
         ];
 
-        yield 'existing pipe stages always use separate lines' => [
+        yield 'existing short pipe stages remain on one line' => [
             "<?php\n\$result = \$input |> first(...) |> second(...);\n",
-            "<?php\n\$result = \$input\n    |> first(...)\n    |> second(...);\n",
+            "<?php\n\$result = \$input |> first(...) |> second(...);\n",
         ];
 
         yield 'comments and Unicode inside the retained call stay intact' => [
             "<?php\n// Проверка\n\$result = \\array_values(\\array_filter([/* keep */ 'я', 'λ']));\n",
-            "<?php\n// Проверка\n\$result = \\array_filter([/* keep */ 'я', 'λ'])\n    |> \\array_values(...);\n",
+            "<?php\n// Проверка\n\$result = \\array_filter([/* keep */ 'я', 'λ']) |> \\array_values(...);\n",
         ];
 
         foreach ([
@@ -99,9 +150,9 @@ final class FunctionCompositionToPipeFixerTest extends FixerTestCase
             $call . " |> \\array_values(...);\n",
         ];
 
-        yield 'following operations retain separate lines' => [
+        yield 'following short operations share the closing line' => [
             $call . " |> \\array_values(...) |> \\count(...);\n",
-            $call . " |> \\array_values(...)\n    |> \\count(...);\n",
+            $call . " |> \\array_values(...) |> \\count(...);\n",
         ];
 
         yield 'multiline array closes beside a user callable' => [
@@ -126,12 +177,12 @@ final class FunctionCompositionToPipeFixerTest extends FixerTestCase
 
         yield 'nested pipe edits keep source boundaries stable' => [
             "<?php\n\$result = produce(\n    \$items,\n)\n    |> (static fn (\$value): array => \$value|> custom(...));\n",
-            "<?php\n\$result = produce(\n    \$items,\n) |> (static fn (\$value): array => \$value\n    |> custom(...));\n",
+            "<?php\n\$result = produce(\n    \$items,\n) |> (static fn (\$value): array => \$value |> custom(...));\n",
         ];
 
-        yield 'closing-only exception also applies after an intermediate closure' => [
+        yield 'short stages join before and after an intermediate closure' => [
             "<?php\n\$result = produce()\n    |> (static function (\$value) {\n        return \$value;\n    })\n    |> custom(...);\n",
-            "<?php\n\$result = produce()\n    |> (static function (\$value) {\n        return \$value;\n    }) |> custom(...);\n",
+            "<?php\n\$result = produce() |> (static function (\$value) {\n    return \$value;\n}) |> custom(...);\n",
         ];
         $name = \str_repeat('x', 105);
 
@@ -152,9 +203,9 @@ final class FunctionCompositionToPipeFixerTest extends FixerTestCase
 
         $literal = \str_repeat('x', 90);
 
-        yield 'nested first-stage arguments use final enclosing indentation' => [
+        yield 'nested first stage fits after joining the outer callable' => [
             "<?php\n\$result = \$items |> (static function (array \$items): array {\n    work();\n    return produce('{$literal}', \$items) |> custom(...);\n});\n",
-            "<?php\n\$result = \$items\n    |> (static function (array \$items): array {\n        work();\n        return produce(\n            '{$literal}',\n            \$items\n        ) |> custom(...);\n    });\n",
+            "<?php\n\$result = \$items |> (static function (array \$items): array {\n    work();\n    return produce('{$literal}', \$items)\n        |> custom(...);\n});\n",
         ];
 
         foreach (['// keep', '/* keep */'] as $comment) {
@@ -236,6 +287,22 @@ final class FunctionCompositionToPipeFixerTest extends FixerTestCase
         $expected = "<?php\r\n\t\$result = produce(\r\n\t\t\$items,\r\n\t) |> custom(...);\r\n";
 
         $this->assertFixerOutput($fixer, $input, $expected);
+    }
+
+    public function testOrdinaryLineWidthCountsUnicodeAndTabStops(): void
+    {
+        $fixer = new FunctionCompositionToPipeFixer();
+        $fixer->setWhitespacesConfig(new WhitespacesFixerConfig("\t", "\r\n"));
+
+        foreach ([37, 36] as $width) {
+            $fixer->configure(['max_line_length' => $width]);
+            $input = "<?php\r\n\t\$result = 'яλ'\r\n\t\t|> normalise(...);\r\n";
+            $expected = 37 === $width
+                ? "<?php\r\n\t\$result = 'яλ' |> normalise(...);\r\n"
+                : $input;
+
+            $this->assertFixerOutput($fixer, $input, $expected);
+        }
     }
 
     public function testNestedArrowHeadersSettleAfterExplicitFormattingRuns(): void

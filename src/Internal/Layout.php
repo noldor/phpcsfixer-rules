@@ -45,6 +45,11 @@ final class Layout
         $previous = $tokens->getPrevNonWhitespace($index);
         \assert(null !== $previous);
         $prefix = self::linePrefix($tokens, $previous) . $tokens[$previous]->getContent();
+        $newline = \mb_strrpos($prefix, "\n");
+
+        if (false !== $newline) {
+            $prefix = \mb_substr($prefix, $newline + 1);
+        }
 
         return self::width(
             $prefix . $separator . \mb_rtrim(self::lineSuffix($tokens, $index, $end), "\r"),

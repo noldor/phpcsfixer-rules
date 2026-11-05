@@ -41,7 +41,7 @@ final class FunctionCompositionToPipeFixer extends AbstractWrappingFixer
 
     public function getDefinition(): FixerDefinitionInterface
     {
-        return new FixerDefinition('Use multiline pipes for known native unary function composition.', [
+        return new FixerDefinition('Use pipes for known native unary function composition and wrap stages to fit the line width.', [
             new CodeSample("<?php\n\$result = \\array_values(\\array_filter(\$values));\n"),
         ]);
     }
@@ -54,7 +54,7 @@ final class FunctionCompositionToPipeFixer extends AbstractWrappingFixer
     protected function createConfigurationDefinition(): FixerConfigurationResolverInterface
     {
         return new FixerConfigurationResolver([
-            new FixerOptionBuilder('max_line_length', 'Maximum first-stage and joined closing-line width.')
+            new FixerOptionBuilder('max_line_length', 'Maximum first-stage and joined pipeline-line width.')
                 ->setAllowedTypes(['int'])
                 ->setAllowedValues(
                     [static fn (mixed $value): bool => \is_int($value) && 0 < $value],
@@ -216,8 +216,7 @@ final class FunctionCompositionToPipeFixer extends AbstractWrappingFixer
         \assert(null !== $previous);
         $nextPipe = $tokens->getNextTokenOfKind($operator, [[\T_PIPE]]);
         $lineEnd = null === $nextPipe ? null : $tokens->getPrevNonWhitespace($nextPipe);
-        $join = Layout::onlyClosingLine($tokens, $previous)
-            && $tokens->getPrevNonWhitespace($operator) === $previous
+        $join = $tokens->getPrevNonWhitespace($operator) === $previous
             && Layout::joinedLineWidth(
                 $tokens,
                 $operator,
