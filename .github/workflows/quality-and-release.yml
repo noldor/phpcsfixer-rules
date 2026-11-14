@@ -45,7 +45,8 @@ jobs:
           coverage: none
           tools: composer:v2
       - run: composer validate --strict
-      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: composer --no-plugins --no-scripts --no-interaction audit --locked --abandoned=report --format=plain
+      - run: composer --no-plugins --no-scripts install --no-interaction --prefer-dist --no-progress
       - run: composer check
       - run: python3 -m unittest discover -s .github/tests
       - name: Verify Composer and Git distribution archives
